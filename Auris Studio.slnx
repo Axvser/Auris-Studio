@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Src/Auris Studio.csproj" />
+  <Project Path="Test/Test.csproj" Id="eb3ab60e-5b61-4095-a837-38dbc68357e5" />
+</Solution>
