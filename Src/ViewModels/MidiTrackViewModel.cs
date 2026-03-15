@@ -27,47 +27,13 @@ public partial class MidiTrackViewModel
     [VeloxProperty] private TimeOrderableCollection<ControlChangeEventViewModel> _expressions = []; // 表情/动态音量
     [VeloxProperty] private TimeOrderableCollection<ControlChangeEventViewModel> _modulations = []; // 调制轮
 
+    [VeloxProperty] private bool _solo = false; // 是否独奏
     [VeloxProperty] private bool _muted = false; // 是否被静音
+    [VeloxProperty] private bool _separated = false; // 是否音色分离
     [VeloxProperty] private bool _selected = false; // 是否被选中
-
-    partial void OnSelectedChanged(bool oldValue, bool newValue)
-    {
-        if (Parent is not null && Parent.CurrentTrack != this)
-        {
-            Parent.CurrentTrack = this;
-        }
-
-        foreach (var note in _notes)
-        {
-            note.IsHighlighted = newValue;
-        }
-    }
-
-    public void Restore()
-    {
-        // 音符类
-        Notes.Restore();
-
-        // 通道触后
-        Cats.Restore();
-
-        // 音高弯音
-        Pwcs.Restore();
-
-        // 控制器类
-        Volumes.Restore();
-        Pans.Restore();
-        Sustains.Restore();
-        Expressions.Restore();
-        Modulations.Restore();
-    }
 
     public MidiTrackViewModel()
     {
-        // 跟踪音符可见性
-        _notes.ItemRestored += OnNoteRestored;
-        _notes.ItemVirtualized += OnNoteVirtualized;
-
         // 音符类
         _notes.CollectionChanged += OnEventsChanged;
 
@@ -89,6 +55,72 @@ public partial class MidiTrackViewModel
         _sustains.CollectionChanged += OnControlChangeEventsChanged;
         _expressions.CollectionChanged += OnControlChangeEventsChanged;
         _modulations.CollectionChanged += OnControlChangeEventsChanged;
+    }
+
+    #region 音轨功能开关
+
+    [VeloxCommand]
+    private void TrackSolo() => Solo = !Solo;
+    [VeloxCommand]
+    private void TrackMuted() => Muted = !Muted;
+    [VeloxCommand]
+    private void TrackSeparated() => Separated = !Separated;
+    [VeloxCommand]
+    private void TrackSelect() => Selected = true;
+
+    partial void OnSoloChanged(bool oldValue, bool newValue)
+    {
+        if (Parent is null) return;
+
+        if (newValue)
+        {
+            Parent.CurrentSelectedTrack = this;
+        }
+        else
+        {
+            if (Parent.CurrentSoloTrack == this)
+            {
+                Parent.CurrentSoloTrack = null;
+            }
+        }
+    }
+
+    partial void OnSelectedChanged(bool oldValue, bool newValue)
+    {
+        if (Parent is not null && Parent.CurrentSelectedTrack != this)
+        {
+            Parent.CurrentSelectedTrack?.Selected = false;
+            Parent.CurrentSelectedTrack = this;
+        }
+
+        foreach (var note in _notes.VisibleItems)
+        {
+            note.IsHighlighted = newValue;
+        }
+    }
+
+    #endregion
+
+    #region 集合处理
+
+    [VeloxCommand]
+    private void Restore()
+    {
+        // 音符类
+        Notes.Restore();
+
+        // 通道触后
+        Cats.Restore();
+
+        // 音高弯音
+        Pwcs.Restore();
+
+        // 控制器类
+        Volumes.Restore();
+        Pans.Restore();
+        Sustains.Restore();
+        Expressions.Restore();
+        Modulations.Restore();
     }
 
     private void OnEventsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -143,12 +175,5 @@ public partial class MidiTrackViewModel
         }
     }
 
-    private static void OnNoteRestored(NoteEventViewModel note)
-    {
-        note.IsVisible = true;
-    }
-    private static void OnNoteVirtualized(NoteEventViewModel note)
-    {
-        note.IsVisible = false;
-    }
+    #endregion
 }

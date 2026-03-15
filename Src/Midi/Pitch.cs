@@ -5,6 +5,8 @@ namespace Auris_Studio.Midi;
 /// </summary>
 public enum Pitch : int
 {
+    Error = -1,
+
     // 第-1八度 (Octave -1)
     C_minus1 = 0,
     CSharp_minus1 = 1,

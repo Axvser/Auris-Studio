@@ -106,6 +106,7 @@ public static class MidiSynthesizer
         }
 
         // 9. 导出MIDI文件
+        events.PrepareForExport();
         MidiFile.Export(path, events);
     }
 

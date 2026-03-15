@@ -5,26 +5,15 @@ using Auris_Studio.ViewModels.MidiEvents;
 using NAudio.Midi;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using VeloxDev.Core.MVVM;
 
 namespace Auris_Studio.ViewModels;
 
 public partial class MidiEditorViewModel : IMidiFormatable
 {
-    // 仅用于确保元数据位于固定的1通道
-    private static readonly MidiTrackViewModel _virtualTrack1 = new() { Channel = 1 };
-
-    // 当前时刻
-    [VeloxProperty] private long _nowTime = 0;
-    // 实时信息
+    // 分辨率
     [VeloxProperty] private int _pPQN = 480;
-    [VeloxProperty] private int _bPM = 120;
-    [VeloxProperty] private int _numerator = 4;
-    [VeloxProperty] private int _denominator = 4;
-    [VeloxProperty] private int _sharpsFlats = 0;
-    [VeloxProperty] private int _majorMinor = 0;
-    [VeloxProperty] private string _lyric = string.Empty;
-    [VeloxProperty] public partial double TickTime { get; private set; }
 
     // 音轨
     [VeloxProperty] private ObservableCollection<MidiTrackViewModel> _tracks = [];
@@ -44,20 +33,56 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] private TimeOrderableCollection<TextEventViewModel> _markers = [];
     [VeloxProperty] private TimeOrderableCollection<TextEventViewModel> _cues = [];
 
-    [VeloxProperty] private MidiTrackViewModel? _currentTrack = null;
+    // [数据层] 计算属性
+    [VeloxProperty] public partial long NowTime { get; internal set; } // 当前时间
+    [VeloxProperty] public partial long MaxTime { get; internal set; } // 最大时间
+    [VeloxProperty] public partial int BPM { get; internal set; } // 当前速度
+    [VeloxProperty] public partial int Numerator { get; internal set; } // 拍号分子
+    [VeloxProperty] public partial int Denominator { get; internal set; } // 拍号分母（用户可见，不是协议中的原值）
+    [VeloxProperty] public partial double TickTime { get; private set; } // 每Tick物理时间
+    [VeloxProperty] public partial int SharpsFlats { get; internal set; } // 升降号
+    [VeloxProperty] public partial int MajorMinor { get; internal set; } // 调号
+    [VeloxProperty] public partial string Lyric { get; internal set; } // 歌词
+    [VeloxProperty] public partial MidiTrackViewModel? CurrentSelectedTrack { get; internal set; } // 当前选中的音轨
+    [VeloxProperty] public partial MidiTrackViewModel? CurrentSoloTrack { get; internal set; } // 当前独奏的音轨
+    [VeloxProperty] public partial HashSet<MidiTrackViewModel> ActiveTracks { get; internal set; } // 当前发声的音轨
+    [VeloxProperty] public partial TimeOrderableCollection<NoteEventViewModel> CurrentNotes { get; internal set; } // 当前可见的音符
 
-    partial void OnBPMChanged(int oldValue, int newValue) => RecalculateTickTime();
-    partial void OnPPQNChanged(int oldValue, int newValue) => RecalculateTickTime();
-    partial void OnNowTimeChanged(long oldValue, long newValue)
-    {
-        UpdateCurrentLyric(newValue);
-        UpdateCurrentTempo(newValue);
-        UpdateCurrentTimeSignature(newValue);
-        UpdateCurrentKeySignature(newValue);
-    }
+    // [视图层] 计算属性
+    [VeloxProperty] public partial double CanvasWidth { get; internal set; } // [共享]画布宽度
+    [VeloxProperty] public partial double NotesCanvasHeight { get; internal set; } // [音符]画布高度
+    [VeloxProperty] public partial double ControlCanvasHeight { get; internal set; } // [控制器]画布高度
+    [VeloxProperty] public partial double WidthPerQuarterNote { get; internal set; } // 每四分音符长度
+    [VeloxProperty] public partial double WidthPerTick { get; internal set; } // 每Tick长度
+    // 卷帘门绘制
+    [VeloxProperty] public partial double HeightPerLine { get; internal set; } // 每行高度
+    [VeloxProperty] public partial double BlackNoteHeight { get; internal set; } // 黑键高度（53个=10*5+3）
+    [VeloxProperty] public partial double WhiteNoteHeight { get; internal set; } // 小白键高度（44个=10*4+4）
+    [VeloxProperty] public partial double HugeWhiteNoteHeight { get; internal set; } // 大白键高度（31个=10*3+1）
+    [VeloxProperty] public partial ObservableCollection<PianoKeyViewModel> PianoKeys { get; internal set; } // 所有按键
+    [VeloxProperty] public partial ObservableCollection<VisualTrackViewModel> VisualTracks { get; internal set; } // 视觉编辑轨
+    [VeloxProperty] public partial Dictionary<int, PianoKeyViewModel> PianoKeysMap { get; internal set; } // 音符映射钢琴键
+
 
     public MidiEditorViewModel()
     {
+        _bPM = 120;
+        _numerator = 4;
+        _denominator = 4;
+        _sharpsFlats = 0;
+        _majorMinor = 0;
+        _lyric = string.Empty;
+        _currentNotes = [];
+        _activeTracks = [];
+        _visualTracks = [];
+        _pianoKeysMap = [];
+
+        _pianoKeys = [];
+        _widthPerTick = 0.1;
+        HeightPerLine = 10;
+        _canvasWidth = 0;
+        _controlCanvasHeight = 100;
+
         _tracks.CollectionChanged += OnTracksChanged;
         _texts.CollectionChanged += OnTextsChanged;
 
@@ -67,9 +92,197 @@ public partial class MidiEditorViewModel : IMidiFormatable
         _lyrics.CollectionChanged += OnLyricsEventsChanged;
 
         RecalculateTickTime();
+        UpdateNotesCanvasHeight();
+        LoadPianoKeys();
+        LoadVisualTracks();
+        UpdatePianoKeys();
+        UpdateVisualTracks();
     }
 
-    private void RecalculateTickTime() => TickTime = (60000.0d / BPM) / PPQN;
+    #region 视图层计算
+
+    private void LoadPianoKeys()
+    {
+        // 批次创建，用于初始化
+        for (int i = (int)Pitch.C_minus1; i <= (int)Pitch.G9; i++)
+        {
+            var key = new PianoKeyViewModel() { Note = i };
+            PianoKeys.Add(key);
+            PianoKeysMap.Add(i, key);
+        }
+    }
+
+    private void UpdatePianoKeys()
+    {
+        double currentBottom = 0.0;
+        // 1. 首先更新所有白键的位置和高度
+        foreach (var key in PianoKeys)
+        {
+            if (key.Type == PianoKeyType.White)
+            {
+                double height = key.Huge ? HugeWhiteNoteHeight : WhiteNoteHeight;
+                key.Height = height;
+                key.Bottom = currentBottom;
+                currentBottom += height;
+            }
+        }
+
+        // 2. 然后更新黑键的位置和高度
+        foreach (var key in PianoKeys)
+        {
+            if (key.Type == PianoKeyType.Black)
+            {
+                key.Height = BlackNoteHeight;
+                int leftWhiteNote = key.Note - 1;
+                int rightWhiteNote = key.Note + 1;
+
+                // 查找左侧和右侧的白键
+                var leftWhiteKey = PianoKeys.FirstOrDefault(k => k.Type == PianoKeyType.White && k.Note == leftWhiteNote);
+                var rightWhiteKey = PianoKeys.FirstOrDefault(k => k.Type == PianoKeyType.White && k.Note == rightWhiteNote);
+
+                if (leftWhiteKey != null && rightWhiteKey != null)
+                {
+                    double leftWhiteKeyBottom = leftWhiteKey.Bottom + leftWhiteKey.Height;
+                    double rightWhiteKeyBottom = rightWhiteKey.Bottom;
+
+                    double midPoint = (leftWhiteKeyBottom + rightWhiteKeyBottom) / 2.0;
+                    key.Bottom = midPoint - (key.Height / 2.0);
+                }
+                else
+                {
+                    var baseWhiteKey = PianoKeys.FirstOrDefault(k => k.Type == PianoKeyType.White && k.Note == leftWhiteNote);
+                    if (baseWhiteKey != null)
+                    {
+                        double offsetRatio = 0.5;
+                        key.Bottom = baseWhiteKey.Bottom + (baseWhiteKey.Height * offsetRatio);
+                    }
+                    else
+                    {
+                        key.Bottom = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    private void LoadVisualTracks()
+    {
+        // 创建与钢琴键对应的视觉轨道
+        for (int i = (int)Pitch.C_minus1; i <= (int)Pitch.G9; i++)
+        {
+            var visual = new VisualTrackViewModel() { Note = i };
+            VisualTracks.Add(visual);
+        }
+    }
+
+    private void UpdateVisualTracks()
+    {
+        if (VisualTracks == null || PianoKeys == null || VisualTracks.Count != PianoKeys.Count)
+        {
+            return;
+        }
+
+        for (int i = 0; i < PianoKeys.Count; i++)
+        {
+            var pianoKey = PianoKeys[i];
+            var visualTrack = VisualTracks[i];
+
+            // 同步Note属性会触发OnNoteChanged，从而自动设置Type和Huge
+            if (visualTrack.Note != pianoKey.Note)
+            {
+                visualTrack.Note = pianoKey.Note;
+            }
+            // 直接复制布局属性
+            visualTrack.Bottom = pianoKey.Bottom;
+            visualTrack.Height = pianoKey.Height;
+        }
+    }
+
+    partial void OnMaxTimeChanged(long oldValue, long newValue)
+    {
+        CanvasWidth = WidthPerTick * newValue;
+        foreach (var track in Tracks)
+        {
+            track.Notes.Virtualize(0, newValue);
+        }
+    }
+
+    partial void OnWidthPerTickChanged(double oldValue, double newValue)
+    {
+        CanvasWidth = MaxTime * newValue;
+        foreach (var note in CurrentNotes)
+        {
+            note.Left = note.AbsoluteTime * WidthPerTick;
+            note.Width = note.DeltaTime * WidthPerTick;
+            UpdateNoteVerticalLayout(note);
+        }
+    }
+
+    partial void OnHeightPerLineChanged(double oldValue, double newValue)
+    {
+        BlackNoteHeight = newValue * 2 * 0.618;
+        WhiteNoteHeight = newValue + BlackNoteHeight / 2;
+        HugeWhiteNoteHeight = newValue + BlackNoteHeight;
+        UpdateNotesCanvasHeight();
+        UpdatePianoKeys();
+        UpdateVisualTracks();
+        UpdateCurrentNotes();
+    }
+
+    private void UpdateNotesCanvasHeight()
+    {
+        NotesCanvasHeight = (44 * WhiteNoteHeight) + (31 * HugeWhiteNoteHeight);
+        UpdateCurrentNotes();
+    }
+
+    private void UpdateCurrentNotes()
+    {
+        CurrentNotes.Virtualize(0, MaxTime);
+        foreach (var note in CurrentNotes)
+        {
+            note.Left = note.AbsoluteTime * WidthPerTick;
+            note.Width = note.DeltaTime * WidthPerTick;
+            UpdateNoteVerticalLayout(note);
+        }
+    }
+
+    private void UpdateNoteVerticalLayout(NoteEventViewModel noteEventVm)
+    {
+        if (noteEventVm == null || PianoKeysMap == null) return;
+
+        int targetNoteNumber = (int)noteEventVm.Note;
+
+        if (PianoKeysMap.TryGetValue(targetNoteNumber, out var pianoKey))
+        {
+            bool hasDownBlack = false;
+            bool hasUpBlack = false;
+            if (PianoKeysMap.TryGetValue(targetNoteNumber - 1, out var upKey) && upKey.Type == PianoKeyType.Black)
+            {
+                hasDownBlack = true;
+            }
+            if (PianoKeysMap.TryGetValue(targetNoteNumber + 1, out var downKey) && downKey.Type == PianoKeyType.Black)
+            {
+                hasUpBlack = true;
+            }
+            noteEventVm.Height = (hasDownBlack, hasUpBlack, pianoKey.Type) switch
+            {
+                (true, true, PianoKeyType.White) => pianoKey.Height - BlackNoteHeight,
+                (true, false, PianoKeyType.White) => pianoKey.Height - BlackNoteHeight / 2,
+                (false, true, PianoKeyType.White) => pianoKey.Height - BlackNoteHeight / 2,
+                (_, _, PianoKeyType.Black) => pianoKey.Height,
+                _ => 0
+            };
+            noteEventVm.Bottom = (hasDownBlack, pianoKey.Type) switch
+            {
+                (true, PianoKeyType.White) => pianoKey.Bottom + BlackNoteHeight / 2,
+                _ => pianoKey.Bottom
+            };
+        }
+    }
+
+    #endregion
+
+    #region 音轨事件追踪
 
     private void OnTracksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -81,6 +294,15 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     foreach (MidiTrackViewModel track in e.NewItems)
                     {
                         track.Parent = this;
+                        track.Notes.PropertyChanged += OnTrackMaxTimeChanged;
+                        track.Notes.Update += OnVisibleNotesUpdated;
+                        track.Notes.VisibleItems.CollectionChanged += OnNoteCollectionChanged;
+                        UpdateMaxTime();
+                        foreach (var note in track.Notes)
+                        {
+                            CurrentNotes.Add(note);
+                        }
+                        UpdateCurrentNotes();
                     }
                 }
                 break;
@@ -91,11 +313,95 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     foreach (MidiTrackViewModel track in e.OldItems)
                     {
                         track.Parent = null;
+                        track.Notes.PropertyChanged -= OnTrackMaxTimeChanged;
+                        track.Notes.Update -= OnVisibleNotesUpdated;
+                        track.Notes.VisibleItems.CollectionChanged -= OnNoteCollectionChanged;
+                        track.RestoreCommand.Execute(null);
+                        foreach (var note in track.Notes)
+                        {
+                            CurrentNotes.Remove(note);
+                        }
                     }
                 }
                 break;
         }
     }
+
+    private void OnNoteCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        switch (e.Action)
+        {
+            case NotifyCollectionChangedAction.Add:
+                if (e.NewItems is not null)
+                {
+                    foreach (NoteEventViewModel note in e.NewItems)
+                    {
+                        CurrentNotes.Add(note);
+                    }
+                }
+                break;
+
+            case NotifyCollectionChangedAction.Remove:
+                if (e.OldItems is not null)
+                {
+                    foreach (NoteEventViewModel note in e.OldItems)
+                    {
+                        CurrentNotes.Remove(note);
+                    }
+                }
+                break;
+        }
+    }
+
+    private void OnVisibleNotesUpdated(IEnumerable<NoteEventViewModel> obj)
+    {
+        // 计算所有可见音符的视觉属性
+    }
+
+    private void OnTrackMaxTimeChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is not TimeOrderableCollection<NoteEventViewModel> track) return;
+
+        if (e.PropertyName != nameof(track.MaxTime)) return;
+
+        // 对于编辑器而言，最大时长可以只增不减，格式互转时会依据事件集合动态计算而不会用到MaxTime
+        if (track.MaxTime > this.MaxTime) this.MaxTime = track.MaxTime;
+    }
+
+    private void UpdateMaxTime()
+    {
+        long calculatedMaxTime = 0;
+
+        foreach (var track in Tracks)
+        {
+            var trackNotes = track?.Notes;
+            if (trackNotes != null && trackNotes.MaxTime > calculatedMaxTime)
+            {
+                calculatedMaxTime = trackNotes.MaxTime;
+            }
+        }
+
+        this.MaxTime = calculatedMaxTime;
+    }
+
+    #endregion
+
+    #region 实时信息同步
+
+    partial void OnBPMChanged(int oldValue, int newValue) => RecalculateTickTime();
+
+    partial void OnPPQNChanged(int oldValue, int newValue) => RecalculateTickTime();
+
+    partial void OnNowTimeChanged(long oldValue, long newValue)
+    {
+        UpdateCurrentLyric(newValue);
+        UpdateCurrentTempo(newValue);
+        UpdateCurrentTimeSignature(newValue);
+        UpdateCurrentKeySignature(newValue);
+    }
+
+    private void RecalculateTickTime() => TickTime = (60000.0d / BPM) / PPQN;
+
     private void OnTextsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         switch (e.Action)
@@ -143,10 +449,72 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 break;
         }
     }
+
     private void OnLyricsEventsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrentLyric(NowTime);
+
     private void OnTempoEventsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrentTempo(NowTime);
+
     private void OnTimeSignatureEventsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrentTimeSignature(NowTime);
+
     private void OnKeySignatureEventsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrentKeySignature(NowTime);
+
+    private void UpdateCurrentLyric(long currentTime)
+    {
+        var currentLyric = Lyrics
+            .Where(t => t.AbsoluteTime <= currentTime)
+            .OrderByDescending(t => t.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentLyric != null)
+        {
+            Lyric = currentLyric.Text;
+        }
+    }
+
+    private void UpdateCurrentTempo(long currentTime)
+    {
+        var currentTempo = Tempos
+            .Where(t => t.AbsoluteTime <= currentTime)
+            .OrderByDescending(t => t.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentTempo != null)
+        {
+            BPM = currentTempo.BPM;
+        }
+    }
+
+    private void UpdateCurrentTimeSignature(long currentTime)
+    {
+        var currentTimeSignature = Tss
+            .Where(t => t.AbsoluteTime <= currentTime)
+            .OrderByDescending(t => t.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentTimeSignature != null)
+        {
+            Numerator = currentTimeSignature.Numerator;
+            Denominator = currentTimeSignature.Denominator;
+        }
+    }
+
+    private void UpdateCurrentKeySignature(long currentTime)
+    {
+        var currentKeySignature = Kss
+            .Where(k => k.AbsoluteTime <= currentTime)
+            .OrderByDescending(k => k.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentKeySignature != null)
+        {
+            SharpsFlats = currentKeySignature.SharpsFlats;
+            MajorMinor = currentKeySignature.MajorMinor;
+        }
+    }
+
+    #endregion
+
+    #region 格式互转
 
     [VeloxCommand]
     public void Read(object? parameter)
@@ -476,7 +844,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         foreach (var track in Tracks)
         {
             int channel = track.Channel;
-            track.Restore();
+            track.RestoreCommand.Execute(null);
 
             // 写入音色事件
             var patchEvent = new PatchChangeEvent(0, channel, (int)track.Patch);
@@ -533,60 +901,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
     }
 
-    #region 动态全局信息计算
-    private void UpdateCurrentLyric(long currentTime)
-    {
-        var currentLyric = Lyrics
-            .Where(t => t.AbsoluteTime <= currentTime)
-            .OrderByDescending(t => t.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentLyric != null)
-        {
-            Lyric = currentLyric.Text;
-        }
-    }
-    private void UpdateCurrentTempo(long currentTime)
-    {
-        var currentTempo = Tempos
-            .Where(t => t.AbsoluteTime <= currentTime)
-            .OrderByDescending(t => t.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentTempo != null)
-        {
-            BPM = currentTempo.BPM;
-        }
-    }
-    private void UpdateCurrentTimeSignature(long currentTime)
-    {
-        var currentTimeSignature = Tss
-            .Where(t => t.AbsoluteTime <= currentTime)
-            .OrderByDescending(t => t.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentTimeSignature != null)
-        {
-            Numerator = currentTimeSignature.Numerator;
-            Denominator = currentTimeSignature.Denominator;
-        }
-    }
-    private void UpdateCurrentKeySignature(long currentTime)
-    {
-        var currentKeySignature = Kss
-            .Where(k => k.AbsoluteTime <= currentTime)
-            .OrderByDescending(k => k.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentKeySignature != null)
-        {
-            SharpsFlats = currentKeySignature.SharpsFlats;
-            MajorMinor = currentKeySignature.MajorMinor;
-        }
-    }
-    #endregion
-
-    #region 辅助方法
     private static bool HasEventsInDict<T>(Dictionary<int, Dictionary<Patch, List<T>>> dict, int channel) where T : MidiEvent
     {
         if (dict.TryGetValue(channel, out var patchDict))
@@ -640,5 +954,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
         eventList.Add(midiEvent);
     }
+
     #endregion
 }

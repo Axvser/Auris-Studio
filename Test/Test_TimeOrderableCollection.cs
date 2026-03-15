@@ -1,6 +1,7 @@
 ﻿using Auris_Studio.ViewModels.ComponentModel;
 using Auris_Studio.ViewModels.MidiEvents;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace Test
@@ -661,9 +662,67 @@ namespace Test
             {
                 Assert.IsLessThanOrEqualTo(
                     visibleItems[i + 1].AbsoluteTime,
-                    visibleItems[i].AbsoluteTime, 
+                    visibleItems[i].AbsoluteTime,
                     $"元素 {i} 的开始时间 {visibleItems[i].AbsoluteTime} 应该小于等于元素 {i + 1} 的开始时间 {visibleItems[i + 1].AbsoluteTime}");
             }
+        }
+
+        [TestMethod]
+        public void MaxTime_PropertyChanged_ShouldFireOnUpdate()
+        {
+            // Arrange: 创建集合并设置事件监听器
+            var collection = new TimeOrderableCollection<NoteEventViewModel>();
+            bool propertyChangedFired = false;
+            string changedPropertyName = string.Empty;
+
+            // 订阅 PropertyChanged 事件
+            ((INotifyPropertyChanged)collection).PropertyChanged += (sender, args) =>
+            {
+                propertyChangedFired = true;
+                changedPropertyName = args.PropertyName ?? string.Empty;
+            };
+
+            // Act 1: 添加一个元素，这应该改变 MaxTime
+            var note1 = new NoteEventViewModel { AbsoluteTime = 100, DeltaTime = 50 }; // 结束时间 150
+            collection.Add(note1);
+
+            // Assert 1: 验证添加操作触发了事件，且属性名为 "MaxTime"
+            Assert.IsTrue(propertyChangedFired, "添加元素后，PropertyChanged 事件应被触发。");
+            Assert.AreEqual(nameof(TimeOrderableCollection<>.MaxTime), changedPropertyName,
+                $"事件参数应为 \"MaxTime\"，实际为 \"{changedPropertyName}\"。");
+
+            // 重置监听器状态
+            propertyChangedFired = false;
+            changedPropertyName = string.Empty;
+
+            // Act 2: 添加一个更晚结束的元素，MaxTime 会变大
+            var note2 = new NoteEventViewModel { AbsoluteTime = 200, DeltaTime = 100 }; // 结束时间 300
+            collection.Add(note2);
+
+            // Assert 2: 验证再次触发事件
+            Assert.IsTrue(propertyChangedFired, "添加一个导致 MaxTime 增大的元素后，PropertyChanged 事件应被触发。");
+            Assert.AreEqual(nameof(TimeOrderableCollection<>.MaxTime), changedPropertyName);
+
+            // 重置监听器状态
+            propertyChangedFired = false;
+            changedPropertyName = string.Empty;
+
+            // Act 3: 修改现有元素的 DeltaTime，使其结束时间超过当前 MaxTime
+            note1.DeltaTime = 250; // 结束时间变为 100 + 250 = 350，超过当前的 MaxTime 300
+
+            // Assert 3: 验证元素属性变化也会触发集合的 MaxTime 变更事件
+            // 注意：这依赖于 NoteEventViewModel 的属性变更能正确通知到其所属的集合。
+            // 此测试的成功与否，直接验证了您遇到的问题核心。
+            Assert.IsTrue(propertyChangedFired, "修改元素属性导致 MaxTime 变化后，PropertyChanged 事件应被触发。");
+            Assert.AreEqual(nameof(TimeOrderableCollection<>.MaxTime), changedPropertyName);
+
+            // 可选：Act 4 - 移除导致 MaxTime 变化的元素
+            propertyChangedFired = false;
+            collection.Remove(note1); // 移除结束时间最晚的 note1 (350)
+
+            // Assert 4: 验证移除操作也触发了事件（因为 MaxTime 会回退到 300）
+            Assert.IsTrue(propertyChangedFired, "移除导致 MaxTime 变化的元素后，PropertyChanged 事件应被触发。");
+            Assert.AreEqual(nameof(TimeOrderableCollection<>.MaxTime), changedPropertyName);
         }
     }
 }

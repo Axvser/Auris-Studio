@@ -4,13 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Auris_Studio"
+        xmlns:v="clr-namespace:Auris_Studio.Views"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="450" Width="800"
+        x:Name="Main">
     <Grid>
-        <StackPanel Orientation="Vertical">
-            <Button Content="Diagnose" 
-                HorizontalAlignment="Center" VerticalAlignment="Center" 
-                Padding="10" Click="DiagnoseButton_Click"/>
-        </StackPanel>
+        <v:MidiEditorView x:Name="Editor" 
+                          Background="{Binding ElementName=Main,Path=Background}"
+                          Foreground="{Binding ElementName=Main,Path=Foreground}"/>
     </Grid>
 </Window>
