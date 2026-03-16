@@ -14,9 +14,49 @@
             <RowDefinition />
         </Grid.RowDefinitions>
 
-        <!-- 刻度线绘制 -->
+        <!-- 顶侧刻度线（带文本） -->
         <Grid Grid.Row="0">
-
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="1">
+                <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Hidden"
+                              x:Name="TopCuttingLinesScrollViewer">
+                    <ItemsControl ItemsSource="{Binding CuttingLines}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <Canvas Width="{Binding CanvasWidth}"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style>
+                                <Setter Property="Canvas.Left" Value="{Binding Left}"/>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Line X1="0" X2="0" 
+                                          Y1="0" Y2="20"
+                                          Stroke="Gray" 
+                                          StrokeThickness="{Binding Width}"/>
+                                    <TextBlock Text="{Binding Text}"
+                                               FontSize="9"
+                                               Foreground="DarkGray"
+                                               VerticalAlignment="Top"
+                                               Visibility="{Binding Text, TargetNullValue=Collapsed, FallbackValue=Collapsed}">
+                                        <TextBlock.LayoutTransform>
+                                            <RotateTransform Angle="45"/>
+                                        </TextBlock.LayoutTransform>
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
         </Grid>
 
         <!-- 钢琴卷帘门绘制 -->
@@ -88,12 +128,39 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    
-                    <!-- 音符绘制 -->
+
+                    <!-- 中部刻度线（不带文本） -->
+                    <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Hidden"
+                              x:Name="CenterCuttingLinesScrollViewer">
+                        <ItemsControl ItemsSource="{Binding CuttingLines}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas Width="{Binding CanvasWidth}"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemContainerStyle>
+                                <Style>
+                                    <Setter Property="Canvas.Left" Value="{Binding Left}"/>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Line X1="0" X2="0" 
+                                          Y1="0" Y2="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"
+                                          Stroke="LightGray" 
+                                          StrokeThickness="{Binding Width}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                     <!-- 音符绘制 -->
                     <ScrollViewer VerticalScrollBarVisibility="Hidden"
                                   HorizontalScrollBarVisibility="Hidden"
-                                  x:Name="NotesScrollViewer">
-                        <ItemsControl ItemsSource="{Binding CurrentNotes.VisibleItems}"
+                                  x:Name="NotesScrollViewer"
+                                  SizeChanged="NotesScrollViewer_SizeChanged">
+                        <ItemsControl ItemsSource="{Binding CurrentNotes}"
                                       Height="{Binding NotesCanvasHeight}"
                                       Width="{Binding CanvasWidth}"
                                       HorizontalAlignment="Left"
@@ -101,8 +168,7 @@
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <Canvas Height="{Binding NotesCanvasHeight}"
-                                            Width="{Binding CanvasWidth}"
-                                            SizeChanged="Canvas_SizeChanged"/>
+                                            Width="{Binding CanvasWidth}"/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemContainerStyle>
@@ -115,7 +181,7 @@
                                 <DataTemplate>
                                     <local:NoteView Width="{Binding Width}"
                                                     Height="{Binding Height}"
-                                                    Background="Wheat"/>
+                                                    Background="Orange"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

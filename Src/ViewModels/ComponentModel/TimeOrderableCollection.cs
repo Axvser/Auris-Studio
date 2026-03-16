@@ -18,10 +18,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
             public readonly bool IsVirtualized = isVirtualized;
         }
 
-        public event Action<T>? ItemVirtualized;
-        public event Action<T>? ItemRestored;
-        public event Action<IEnumerable<T>>? Update;
-
         [VeloxProperty] private long _maxTime = 0;
         [VeloxProperty] private ObservableCollection<T> _visibleItems = [];
 
@@ -220,7 +216,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
 
             if (itemsToVirtualize.Count > 0 || itemsToRestore.Count > 0)
             {
-                Update?.Invoke(_visibleItems);
                 OnCollectionChanged(NotifyCollectionChangedAction.Reset);
             }
         }
@@ -265,10 +260,8 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 }
 
                 added?.Invoke(item);
-                ItemRestored?.Invoke(item);
             }
 
-            Update?.Invoke(_visibleItems);
             OnCollectionChanged(NotifyCollectionChangedAction.Reset);
         }
 
@@ -462,18 +455,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
                         _visibleItems.Add(item);
                         OnCollectionChanged(NotifyCollectionChangedAction.Add, item, _visibleItems.Count - 1);
                     }
-
-                    if (wasVirtualized)
-                    {
-                        ItemRestored?.Invoke(item);
-                    }
-                }
-                else
-                {
-                    if (!wasVirtualized)
-                    {
-                        ItemVirtualized?.Invoke(item);
-                    }
                 }
             }
             else if (wasVirtualized != isNowVirtualized)
@@ -497,7 +478,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
                         _visibleItems.Add(item);
                         OnCollectionChanged(NotifyCollectionChangedAction.Add, item, _visibleItems.Count - 1);
                     }
-                    ItemRestored?.Invoke(item);
                 }
                 else if (!wasVirtualized && isNowVirtualized)
                 {
@@ -505,7 +485,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
                     {
                         _visibleItems.RemoveAt(oldVisibleIndex);
                         OnCollectionChanged(NotifyCollectionChangedAction.Remove, item, oldVisibleIndex);
-                        ItemVirtualized?.Invoke(item);
                     }
                 }
             }
@@ -572,7 +551,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 foreach (var (item, index) in itemsWithIndices)
                 {
                     _visibleItems.RemoveAt(index);
-                    ItemVirtualized?.Invoke(item);
                 }
             }
 
@@ -593,7 +571,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
                         insertIndex = _visibleItems.Count;
                         _visibleItems.Add(item);
                     }
-                    ItemRestored?.Invoke(item);
                 }
             }
         }

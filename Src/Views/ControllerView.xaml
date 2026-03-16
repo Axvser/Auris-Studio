@@ -16,7 +16,12 @@
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="80" />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
             <local:ScrollBar Orientation="Horizontal"
+                             Grid.Column="1"
                              Minimum="0"
                              Maximum="{Binding CanvasWidth}"
                              ViewportSize="{Binding RelativeSource={RelativeSource AncestorType=local:ControllerView},Path=HorizontalViewportWidth}"

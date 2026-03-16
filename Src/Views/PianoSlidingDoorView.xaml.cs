@@ -1,8 +1,6 @@
-﻿using System.Windows;
+﻿using Auris_Studio.ViewModels;
+using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
-using VeloxDev.Core.DynamicTheme;
-using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.Views
 {
@@ -11,6 +9,15 @@ namespace Auris_Studio.Views
         public PianoSlidingDoorView()
         {
             InitializeComponent();
+
+            // 这儿暂时找不出问题，只知道非得窗口尺寸变一下，获取到的Viewport相关信息才对
+            DataContextChanged += PianoSlidingDoorView_DataContextChanged;
+        }
+
+        private void PianoSlidingDoorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            Application.Current.MainWindow.Width += 1;
+            Application.Current.MainWindow.Width -= 1;
         }
 
         public double HorizontalOffset
@@ -39,15 +46,24 @@ namespace Auris_Studio.Views
         private static void OnHorizontalOffsetChanged(object? sender, DependencyPropertyChangedEventArgs e)
         {
             if (sender is PianoSlidingDoorView view &&
-               e.NewValue is double value)
+               e.NewValue is double value &&
+               view.DataContext is MidiEditorViewModel vm)
             {
                 view.NotesScrollViewer.ScrollToHorizontalOffset(value);
+                view.TopCuttingLinesScrollViewer.ScrollToHorizontalOffset(value);
+                view.CenterCuttingLinesScrollViewer.ScrollToHorizontalOffset(value);
+                view.HorizontalViewportWidth = view.NotesScrollViewer.ViewportWidth;
+                vm.ViewportLeft = value;
             }
         }
 
-        private void Canvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        private void NotesScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            HorizontalViewportWidth = NotesScrollViewer.ViewportWidth;
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                HorizontalViewportWidth = NotesScrollViewer.ViewportWidth;
+                vm.ViewportWidth = e.NewSize.Width;
+            }
         }
     }
 }

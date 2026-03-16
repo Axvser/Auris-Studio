@@ -401,73 +401,6 @@ namespace Test
         }
 
         [TestMethod]
-        public void UpdateEvent_ShouldFireAfterVirtualize()
-        {
-            // Arrange
-            var collection = new TimeOrderableCollection<NoteEventViewModel>();
-            bool eventFired = false;
-            IEnumerable<NoteEventViewModel>? updatedItems = null;
-
-            collection.Update += items =>
-            {
-                eventFired = true;
-                updatedItems = items;
-            };
-
-            for (int i = 0; i < 5; i++)
-            {
-                collection.Add(new NoteEventViewModel
-                {
-                    AbsoluteTime = i * 100,
-                    DeltaTime = 50
-                });
-            }
-
-            // Act
-            collection.Virtualize(200, 400);
-
-            // Assert
-            Assert.IsTrue(eventFired);
-            Assert.IsNotNull(updatedItems);
-            Assert.AreEqual(2, updatedItems.Count()); // 在200-400范围内的元素
-        }
-
-        [TestMethod]
-        public void UpdateEvent_ShouldFireAfterRestore()
-        {
-            // Arrange
-            var collection = new TimeOrderableCollection<NoteEventViewModel>();
-            bool eventFired = false;
-            IEnumerable<NoteEventViewModel>? updatedItems = null;
-
-            collection.Update += items =>
-            {
-                eventFired = true;
-                updatedItems = items;
-            };
-
-            for (int i = 0; i < 5; i++)
-            {
-                collection.Add(new NoteEventViewModel
-                {
-                    AbsoluteTime = i * 100,
-                    DeltaTime = 50
-                });
-            }
-
-            collection.Virtualize(200, 400);
-            eventFired = false; // 重置标志
-
-            // Act
-            collection.Restore();
-
-            // Assert
-            Assert.IsTrue(eventFired);
-            Assert.IsNotNull(updatedItems);
-            Assert.AreEqual(5, updatedItems.Count()); // 所有元素都应该可见
-        }
-
-        [TestMethod]
         [Timeout(3000, CooperativeCancellation = true)]
         public void Performance_LargeCollection_ShouldBeEfficient()
         {
@@ -583,59 +516,6 @@ namespace Test
                 collection.Remove(maxItem);
                 Assert.AreEqual(300, collection.MaxTime); // 回退到之前的最大值
             }
-        }
-
-        [TestMethod]
-        public void ItemVirtualizedEvent_ShouldFireWhenItemMovedToBuffer()
-        {
-            // Arrange
-            var collection = new TimeOrderableCollection<NoteEventViewModel>();
-            var virtualizedItem = new NoteEventViewModel { AbsoluteTime = 100, DeltaTime = 50 };
-            collection.Add(virtualizedItem);
-
-            bool eventFired = false;
-            NoteEventViewModel? eventItem = null;
-
-            collection.ItemVirtualized += item =>
-            {
-                eventFired = true;
-                eventItem = item;
-            };
-
-            // Act
-            collection.Virtualize(200, 400); // 虚拟化范围不包含该元素
-
-            // Assert
-            Assert.IsTrue(eventFired);
-            Assert.AreEqual(virtualizedItem, eventItem);
-        }
-
-        [TestMethod]
-        public void ItemRestoredEvent_ShouldFireWhenItemRestoredFromBuffer()
-        {
-            // Arrange
-            var collection = new TimeOrderableCollection<NoteEventViewModel>();
-            var note = new NoteEventViewModel { AbsoluteTime = 100, DeltaTime = 50 };
-            collection.Add(note);
-
-            // 先虚拟化，将元素移到缓冲区
-            collection.Virtualize(200, 400);
-
-            bool eventFired = false;
-            NoteEventViewModel? eventItem = null;
-
-            collection.ItemRestored += item =>
-            {
-                eventFired = true;
-                eventItem = item;
-            };
-
-            // Act
-            collection.Restore(); // 恢复所有元素
-
-            // Assert
-            Assert.IsTrue(eventFired);
-            Assert.AreEqual(note, eventItem);
         }
 
         [TestMethod]

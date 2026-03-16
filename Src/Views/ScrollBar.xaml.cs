@@ -16,9 +16,7 @@ namespace Auris_Studio.Views
         }
 
         public event EventHandler<double>? ValueChanged;
-
         public event EventHandler<double>? OffsetChanged;
-
         public event EventHandler<double>? ViewportSizeChanged;
 
         public Brush Fill
@@ -161,9 +159,16 @@ namespace Auris_Studio.Views
 
             _dragBarLength = Math.Max(MIN_DRAGBAR_SIZE, _trackSize.Height * visibleRatio);
 
-            // 计算拖动条位置
-            double valueRatio = (Value - Minimum) / totalRange;
-            valueRatio = Math.Max(0, Math.Min(1, valueRatio));
+            // 修改点1：计算可滚动范围，用于滑块位置计算
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            double valueRatio = 0;
+
+            if (scrollableRange > 0)
+            {
+                valueRatio = (Value - Minimum) / scrollableRange;
+                valueRatio = Math.Max(0, Math.Min(1, valueRatio));
+            }
+
             double dragBarTop = BUTTON_SIZE + (_trackSize.Height - _dragBarLength) * valueRatio;
 
             // 更新元素位置和尺寸
@@ -214,16 +219,26 @@ namespace Auris_Studio.Views
             // 计算可拖动轨道尺寸
             _trackSize = new Size(width - 2 * BUTTON_SIZE, height);
 
-            // 计算拖动条长度
+            // 1. 使用与垂直计算相同的数学模型
             double totalRange = Math.Max(1, Maximum - Minimum);
             double visibleRatio = ViewportSize / totalRange;
+            // 2. 限制滑块显示比例范围 (例如 10% 到 100%)，避免滑块过小或过大
             visibleRatio = Math.Min(1, Math.Max(0.1, visibleRatio));
-
+            // 3. 基于水平轨道的宽度计算滑块长度
             _dragBarLength = Math.Max(MIN_DRAGBAR_SIZE, _trackSize.Width * visibleRatio);
 
-            // 计算拖动条位置
-            double valueRatio = (Value - Minimum) / totalRange;
-            valueRatio = Math.Max(0, Math.Min(1, valueRatio));
+            // 计算可滚动范围，用于滑块位置计算
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            double valueRatio = 0;
+
+            if (scrollableRange > 0)
+            {
+                valueRatio = (Value - Minimum) / scrollableRange;
+                valueRatio = Math.Max(0, Math.Min(1, valueRatio));
+            }
+
+            // 计算滑块的水平起始位置
+            // 轨道起点 (BUTTON_SIZE) + 滑块在可用轨道空间中的偏移量
             double dragBarLeft = BUTTON_SIZE + (_trackSize.Width - _dragBarLength) * valueRatio;
 
             // 更新元素位置和尺寸
@@ -389,9 +404,18 @@ namespace Auris_Studio.Views
         private bool _isUpdatingValueFromOffset = false;
         private bool _isUpdatingOffsetFromValue = false;
 
+        private double ClampValue(double value)
+        {
+            double effectiveMaximum = Maximum - ViewportSize;
+            return Math.Max(Minimum, Math.Min(effectiveMaximum, value));
+        }
+
         private void ClampValue()
         {
-            double clamped = Math.Max(Minimum, Math.Min(Maximum, Value));
+            // 修改点3：使用可滚动范围作为值的上限
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            double maxScrollableValue = Minimum + scrollableRange;
+            double clamped = Math.Max(Minimum, Math.Min(maxScrollableValue, Value));
             if (Math.Abs(Value - clamped) > 0.001)
             {
                 _isUpdatingValueFromOffset = true;
@@ -410,6 +434,8 @@ namespace Auris_Studio.Views
             double newValue = Value - SmallChange;
             _isUpdatingValueFromOffset = false;
             _isUpdatingOffsetFromValue = false;
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            double maxScrollableValue = Minimum + scrollableRange;
             Value = Math.Max(Minimum, newValue);
         }
 
@@ -419,7 +445,9 @@ namespace Auris_Studio.Views
             double newValue = Value + SmallChange;
             _isUpdatingValueFromOffset = false;
             _isUpdatingOffsetFromValue = false;
-            Value = Math.Min(Maximum, newValue);
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            double maxScrollableValue = Minimum + scrollableRange;
+            Value = Math.Min(maxScrollableValue, newValue);
         }
 
         private void OnTrackMouseDown(object sender, MouseButtonEventArgs e)
@@ -427,14 +455,17 @@ namespace Auris_Studio.Views
             var position = e.GetPosition(TrackBackground);
             double newValue = CalculateValueFromPosition(position);
 
-            double currentValueRatio = (Value - Minimum) / (Maximum - Minimum);
-            double clickValueRatio = (newValue - Minimum) / (Maximum - Minimum);
+            // 修改点4：使用可滚动范围计算比例
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            double currentValueRatio = scrollableRange > 0 ? (Value - Minimum) / scrollableRange : 0;
+            double clickValueRatio = scrollableRange > 0 ? (newValue - Minimum) / scrollableRange : 0;
 
             if (clickValueRatio < currentValueRatio)
             {
                 // 点击了拖动条前面的轨道
                 _isUpdatingValueFromOffset = false;
                 _isUpdatingOffsetFromValue = false;
+                double maxScrollableValue = Minimum + scrollableRange;
                 Value = Math.Max(Minimum, Value - LargeChange);
             }
             else
@@ -442,7 +473,8 @@ namespace Auris_Studio.Views
                 // 点击了拖动条后面的轨道
                 _isUpdatingValueFromOffset = false;
                 _isUpdatingOffsetFromValue = false;
-                Value = Math.Min(Maximum, Value + LargeChange);
+                double maxScrollableValue = Minimum + scrollableRange;
+                Value = Math.Min(maxScrollableValue, Value + LargeChange);
             }
         }
 
@@ -476,13 +508,15 @@ namespace Auris_Studio.Views
 
                 if (pixelRange > 0)
                 {
-                    double valueRange = Maximum - Minimum;
-                    double valueDelta = (delta / pixelRange) * valueRange;
+                    // 修改点5：拖拽计算使用可滚动范围
+                    double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+                    double valueDelta = (delta / pixelRange) * scrollableRange;
 
                     double newValue = _dragStartValue + valueDelta;
                     _isUpdatingValueFromOffset = false;
                     _isUpdatingOffsetFromValue = false;
-                    Value = Math.Max(Minimum, Math.Min(Maximum, newValue));
+                    double maxScrollableValue = Minimum + scrollableRange;
+                    Value = Math.Max(Minimum, Math.Min(maxScrollableValue, newValue));
                 }
             }
         }
@@ -513,24 +547,23 @@ namespace Auris_Studio.Views
 
         private double CalculateValueFromPosition(Point position)
         {
+            double pixelRatio = 0;
+
             if (Orientation == Orientation.Vertical)
             {
-                double pixelRange = _trackSize.Height - _dragBarLength;
-                if (pixelRange <= 0) return Minimum;
-
-                double pixelPosition = Math.Max(0, Math.Min(pixelRange, position.Y));
-                double ratio = pixelPosition / pixelRange;
-                return Minimum + (Maximum - Minimum) * ratio;
+                double trackHeight = _trackSize.Height;
+                pixelRatio = (position.Y - BUTTON_SIZE) / (trackHeight - _dragBarLength);
             }
             else
             {
-                double pixelRange = _trackSize.Width - _dragBarLength;
-                if (pixelRange <= 0) return Minimum;
-
-                double pixelPosition = Math.Max(0, Math.Min(pixelRange, position.X));
-                double ratio = pixelPosition / pixelRange;
-                return Minimum + (Maximum - Minimum) * ratio;
+                double trackWidth = _trackSize.Width;
+                pixelRatio = (position.X - BUTTON_SIZE) / (trackWidth - _dragBarLength);
             }
+
+            pixelRatio = Math.Max(0, Math.Min(1, pixelRatio));
+
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            return Minimum + pixelRatio * scrollableRange;
         }
 
         private void UpdateCursors()

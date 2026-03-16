@@ -33,6 +33,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] private TimeOrderableCollection<TextEventViewModel> _markers = [];
     [VeloxProperty] private TimeOrderableCollection<TextEventViewModel> _cues = [];
 
+    [VeloxProperty] private Alignment _alignment = Alignment.EighthNote;
+
     // [数据层] 计算属性
     [VeloxProperty] public partial long NowTime { get; internal set; } // 当前时间
     [VeloxProperty] public partial long MaxTime { get; internal set; } // 最大时间
@@ -52,6 +54,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial double CanvasWidth { get; internal set; } // [共享]画布宽度
     [VeloxProperty] public partial double NotesCanvasHeight { get; internal set; } // [音符]画布高度
     [VeloxProperty] public partial double ControlCanvasHeight { get; internal set; } // [控制器]画布高度
+    [VeloxProperty] public partial double ViewportLeft { get; internal set; } // [可见区域]距离父容器左边界的长度
+    [VeloxProperty] public partial double ViewportWidth { get; internal set; } // [可见区域]宽度
+    [VeloxProperty] public partial long ViewportStartTime { get; internal set; } // [可见区域]起始时间
+    [VeloxProperty] public partial long ViewportEndTime { get; internal set; } // [可见区域]结束时间
     [VeloxProperty] public partial double WidthPerQuarterNote { get; internal set; } // 每四分音符长度
     [VeloxProperty] public partial double WidthPerTick { get; internal set; } // 每Tick长度
     // 卷帘门绘制
@@ -62,36 +68,37 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial ObservableCollection<PianoKeyViewModel> PianoKeys { get; internal set; } // 所有按键
     [VeloxProperty] public partial ObservableCollection<VisualTrackViewModel> VisualTracks { get; internal set; } // 视觉编辑轨
     [VeloxProperty] public partial Dictionary<int, PianoKeyViewModel> PianoKeysMap { get; internal set; } // 音符映射钢琴键
-
+    [VeloxProperty] public partial ObservableCollection<CuttingLineViewModel> CuttingLines { get; internal set; } // 划分线
 
     public MidiEditorViewModel()
     {
-        _bPM = 120;
-        _numerator = 4;
-        _denominator = 4;
-        _sharpsFlats = 0;
-        _majorMinor = 0;
-        _lyric = string.Empty;
-        _currentNotes = [];
-        _activeTracks = [];
-        _visualTracks = [];
-        _pianoKeysMap = [];
+        CurrentNotes = [];
+        ActiveTracks = [];
+        VisualTracks = [];
+        PianoKeysMap = [];
+        CuttingLines = [];
+        PianoKeys = [];
 
-        _pianoKeys = [];
-        _widthPerTick = 0.1;
+        BPM = 120;
+        Numerator = 4;
+        Denominator = 4;
+        SharpsFlats = 0;
+        MajorMinor = 0;
+        Lyric = string.Empty;
+        WidthPerQuarterNote = 30;
         HeightPerLine = 10;
-        _canvasWidth = 0;
-        _controlCanvasHeight = 100;
+        CanvasWidth = 0;
+        ControlCanvasHeight = 100;
 
-        _tracks.CollectionChanged += OnTracksChanged;
-        _texts.CollectionChanged += OnTextsChanged;
+        Tracks.CollectionChanged += OnTracksChanged;
+        Texts.CollectionChanged += OnTextsChanged;
 
-        _tempos.CollectionChanged += OnTempoEventsChanged;
-        _tss.CollectionChanged += OnTimeSignatureEventsChanged;
-        _kss.CollectionChanged += OnKeySignatureEventsChanged;
-        _lyrics.CollectionChanged += OnLyricsEventsChanged;
+        Tempos.CollectionChanged += OnTempoEventsChanged;
+        Tss.CollectionChanged += OnTimeSignatureEventsChanged;
+        Kss.CollectionChanged += OnKeySignatureEventsChanged;
+        Lyrics.CollectionChanged += OnLyricsEventsChanged;
 
-        RecalculateTickTime();
+        UpdateTickTime();
         UpdateNotesCanvasHeight();
         LoadPianoKeys();
         LoadVisualTracks();
@@ -99,7 +106,79 @@ public partial class MidiEditorViewModel : IMidiFormatable
         UpdateVisualTracks();
     }
 
-    #region 视图层计算
+    #region [Dispatcher] 属性回调
+
+    partial void OnMaxTimeChanged(long oldValue, long newValue)
+    {
+        CanvasWidth = WidthPerTick * newValue;
+    }
+
+    partial void OnBPMChanged(int oldValue, int newValue) => UpdateTickTime();
+
+    partial void OnPPQNChanged(int oldValue, int newValue)
+    {
+        UpdateTickTime();
+        UpdateWidthPerTick();
+    }
+
+    partial void OnNowTimeChanged(long oldValue, long newValue)
+    {
+        UpdateCurrentLyric(newValue);
+        UpdateCurrentTempo(newValue);
+        UpdateCurrentTimeSignature(newValue);
+        UpdateCurrentKeySignature(newValue);
+    }
+
+    partial void OnWidthPerTickChanged(double oldValue, double newValue)
+    {
+        CanvasWidth = MaxTime * newValue;
+        foreach (var note in CurrentNotes)
+        {
+            note.Left = note.AbsoluteTime * WidthPerTick;
+            note.Width = note.DeltaTime * WidthPerTick;
+            UpdateNoteVerticalLayout(note);
+        }
+    }
+
+    partial void OnWidthPerQuarterNoteChanged(double oldValue, double newValue)
+    {
+        UpdateWidthPerTick();
+    }
+
+    partial void OnHeightPerLineChanged(double oldValue, double newValue)
+    {
+        BlackNoteHeight = newValue * 2 * 0.618;
+        WhiteNoteHeight = newValue + BlackNoteHeight / 2;
+        HugeWhiteNoteHeight = newValue + BlackNoteHeight;
+        UpdateNotesCanvasHeight();
+        UpdatePianoKeys();
+        UpdateVisualTracks();
+        UpdateCurrentNotes();
+    }
+
+    partial void OnViewportStartTimeChanged(long oldValue, long newValue)
+    {
+        CurrentNotes.Virtualize(newValue, ViewportEndTime);
+    }
+
+    partial void OnViewportEndTimeChanged(long oldValue, long newValue)
+    {
+        CurrentNotes.Virtualize(ViewportStartTime, newValue);
+    }
+
+    partial void OnViewportLeftChanged(double oldValue, double newValue)
+    {
+        UpdateViewportTimeRange();
+    }
+
+    partial void OnViewportWidthChanged(double oldValue, double newValue)
+    {
+        UpdateViewportTimeRange();
+    }
+
+    #endregion
+
+    #region [Helper] 数据更新
 
     private void LoadPianoKeys()
     {
@@ -198,37 +277,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
     }
 
-    partial void OnMaxTimeChanged(long oldValue, long newValue)
-    {
-        CanvasWidth = WidthPerTick * newValue;
-        foreach (var track in Tracks)
-        {
-            track.Notes.Virtualize(0, newValue);
-        }
-    }
-
-    partial void OnWidthPerTickChanged(double oldValue, double newValue)
-    {
-        CanvasWidth = MaxTime * newValue;
-        foreach (var note in CurrentNotes)
-        {
-            note.Left = note.AbsoluteTime * WidthPerTick;
-            note.Width = note.DeltaTime * WidthPerTick;
-            UpdateNoteVerticalLayout(note);
-        }
-    }
-
-    partial void OnHeightPerLineChanged(double oldValue, double newValue)
-    {
-        BlackNoteHeight = newValue * 2 * 0.618;
-        WhiteNoteHeight = newValue + BlackNoteHeight / 2;
-        HugeWhiteNoteHeight = newValue + BlackNoteHeight;
-        UpdateNotesCanvasHeight();
-        UpdatePianoKeys();
-        UpdateVisualTracks();
-        UpdateCurrentNotes();
-    }
-
     private void UpdateNotesCanvasHeight()
     {
         NotesCanvasHeight = (44 * WhiteNoteHeight) + (31 * HugeWhiteNoteHeight);
@@ -280,9 +328,92 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
     }
 
+    private void UpdateWidthPerTick()
+    {
+        WidthPerTick = WidthPerQuarterNote / PPQN;
+    }
+
+    private void UpdateMaxTime()
+    {
+        long calculatedMaxTime = 0;
+
+        foreach (var track in Tracks)
+        {
+            var trackNotes = track?.Notes;
+            if (trackNotes != null && trackNotes.MaxTime > calculatedMaxTime)
+            {
+                calculatedMaxTime = trackNotes.MaxTime;
+            }
+        }
+
+        this.MaxTime = calculatedMaxTime;
+    }
+
+    private void UpdateTickTime() => TickTime = (60000.0d / BPM) / PPQN;
+
+    private void UpdateCurrentLyric(long currentTime)
+    {
+        var currentLyric = Lyrics
+            .Where(t => t.AbsoluteTime <= currentTime)
+            .OrderByDescending(t => t.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentLyric != null)
+        {
+            Lyric = currentLyric.Text;
+        }
+    }
+
+    private void UpdateCurrentTempo(long currentTime)
+    {
+        var currentTempo = Tempos
+            .Where(t => t.AbsoluteTime <= currentTime)
+            .OrderByDescending(t => t.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentTempo != null)
+        {
+            BPM = currentTempo.BPM;
+        }
+    }
+
+    private void UpdateCurrentTimeSignature(long currentTime)
+    {
+        var currentTimeSignature = Tss
+            .Where(t => t.AbsoluteTime <= currentTime)
+            .OrderByDescending(t => t.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentTimeSignature != null)
+        {
+            Numerator = currentTimeSignature.Numerator;
+            Denominator = currentTimeSignature.Denominator;
+        }
+    }
+
+    private void UpdateCurrentKeySignature(long currentTime)
+    {
+        var currentKeySignature = Kss
+            .Where(k => k.AbsoluteTime <= currentTime)
+            .OrderByDescending(k => k.AbsoluteTime)
+            .FirstOrDefault();
+
+        if (currentKeySignature != null)
+        {
+            SharpsFlats = currentKeySignature.SharpsFlats;
+            MajorMinor = currentKeySignature.MajorMinor;
+        }
+    }
+
+    private void UpdateViewportTimeRange()
+    {
+        ViewportStartTime = (long)(ViewportLeft / WidthPerTick);
+        ViewportEndTime = (long)((ViewportLeft + ViewportWidth) / WidthPerTick);
+    }
+
     #endregion
 
-    #region 音轨事件追踪
+    #region [Helper] 事件管理
 
     private void OnTracksChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -295,7 +426,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     {
                         track.Parent = this;
                         track.Notes.PropertyChanged += OnTrackMaxTimeChanged;
-                        track.Notes.Update += OnVisibleNotesUpdated;
                         track.Notes.VisibleItems.CollectionChanged += OnNoteCollectionChanged;
                         UpdateMaxTime();
                         foreach (var note in track.Notes)
@@ -314,7 +444,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     {
                         track.Parent = null;
                         track.Notes.PropertyChanged -= OnTrackMaxTimeChanged;
-                        track.Notes.Update -= OnVisibleNotesUpdated;
                         track.Notes.VisibleItems.CollectionChanged -= OnNoteCollectionChanged;
                         track.RestoreCommand.Execute(null);
                         foreach (var note in track.Notes)
@@ -353,11 +482,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
     }
 
-    private void OnVisibleNotesUpdated(IEnumerable<NoteEventViewModel> obj)
-    {
-        // 计算所有可见音符的视觉属性
-    }
-
     private void OnTrackMaxTimeChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (sender is not TimeOrderableCollection<NoteEventViewModel> track) return;
@@ -367,40 +491,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         // 对于编辑器而言，最大时长可以只增不减，格式互转时会依据事件集合动态计算而不会用到MaxTime
         if (track.MaxTime > this.MaxTime) this.MaxTime = track.MaxTime;
     }
-
-    private void UpdateMaxTime()
-    {
-        long calculatedMaxTime = 0;
-
-        foreach (var track in Tracks)
-        {
-            var trackNotes = track?.Notes;
-            if (trackNotes != null && trackNotes.MaxTime > calculatedMaxTime)
-            {
-                calculatedMaxTime = trackNotes.MaxTime;
-            }
-        }
-
-        this.MaxTime = calculatedMaxTime;
-    }
-
-    #endregion
-
-    #region 实时信息同步
-
-    partial void OnBPMChanged(int oldValue, int newValue) => RecalculateTickTime();
-
-    partial void OnPPQNChanged(int oldValue, int newValue) => RecalculateTickTime();
-
-    partial void OnNowTimeChanged(long oldValue, long newValue)
-    {
-        UpdateCurrentLyric(newValue);
-        UpdateCurrentTempo(newValue);
-        UpdateCurrentTimeSignature(newValue);
-        UpdateCurrentKeySignature(newValue);
-    }
-
-    private void RecalculateTickTime() => TickTime = (60000.0d / BPM) / PPQN;
 
     private void OnTextsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -458,63 +548,9 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
     private void OnKeySignatureEventsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrentKeySignature(NowTime);
 
-    private void UpdateCurrentLyric(long currentTime)
-    {
-        var currentLyric = Lyrics
-            .Where(t => t.AbsoluteTime <= currentTime)
-            .OrderByDescending(t => t.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentLyric != null)
-        {
-            Lyric = currentLyric.Text;
-        }
-    }
-
-    private void UpdateCurrentTempo(long currentTime)
-    {
-        var currentTempo = Tempos
-            .Where(t => t.AbsoluteTime <= currentTime)
-            .OrderByDescending(t => t.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentTempo != null)
-        {
-            BPM = currentTempo.BPM;
-        }
-    }
-
-    private void UpdateCurrentTimeSignature(long currentTime)
-    {
-        var currentTimeSignature = Tss
-            .Where(t => t.AbsoluteTime <= currentTime)
-            .OrderByDescending(t => t.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentTimeSignature != null)
-        {
-            Numerator = currentTimeSignature.Numerator;
-            Denominator = currentTimeSignature.Denominator;
-        }
-    }
-
-    private void UpdateCurrentKeySignature(long currentTime)
-    {
-        var currentKeySignature = Kss
-            .Where(k => k.AbsoluteTime <= currentTime)
-            .OrderByDescending(k => k.AbsoluteTime)
-            .FirstOrDefault();
-
-        if (currentKeySignature != null)
-        {
-            SharpsFlats = currentKeySignature.SharpsFlats;
-            MajorMinor = currentKeySignature.MajorMinor;
-        }
-    }
-
     #endregion
 
-    #region 格式互转
+    #region [Helper] 格式互转
 
     [VeloxCommand]
     public void Read(object? parameter)

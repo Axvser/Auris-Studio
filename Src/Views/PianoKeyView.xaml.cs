@@ -54,9 +54,9 @@ namespace Auris_Studio.Views
 
                 view.BorderThickness = view.Bolded switch
                 {
-                    PianoKeySideBolded.None => new Thickness(0, 0.5, 0, 0.5),
-                    PianoKeySideBolded.Top => new Thickness(0, 1, 0, 0.5),
-                    PianoKeySideBolded.Bottom => new Thickness(0, 0.5, 0, 1),
+                    PianoKeySideBolded.None => new Thickness(0, 0.5, 1, 0.5),
+                    PianoKeySideBolded.Top => new Thickness(0, 1, 1, 0.5),
+                    PianoKeySideBolded.Bottom => new Thickness(0, 0.5, 1, 1),
                     _ => new Thickness(0)
                 };
             }
