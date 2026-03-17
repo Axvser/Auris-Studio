@@ -8,7 +8,7 @@ using Converter = VeloxDev.WPF.PlatformAdapters.BrushConverter;
 
 namespace Auris_Studio.Views.Decorators
 {
-    [ThemeConfig<Converter, Dark, Light>(nameof(MeasureLineBrush), [nameof(Brushes.DarkGray)],[nameof(Brushes.Black)])]
+    [ThemeConfig<Converter, Dark, Light>(nameof(MeasureLineBrush), [nameof(Brushes.DarkGray)], [nameof(Brushes.Black)])]
     [ThemeConfig<Converter, Dark, Light>(nameof(HeaderTextBrush), [nameof(Brushes.DarkGray)], [nameof(Brushes.Black)])]
     [ThemeConfig<Converter, Dark, Light>(nameof(BeatLineBrush), [nameof(Brushes.LightGray)], [nameof(Brushes.Black)])]
     public partial class MeasureBeatDecorator : ContentControl

@@ -20,19 +20,36 @@ public partial class NoteEventViewModel : EventViewModel
     {
         if (Parent?.Parent is MidiEditorViewModel editor)
         {
-            editor.UpdateNoteVerticalLayout(this);
+            editor.UpdateNote(this);
         }
     }
 
     [VeloxCommand]
-    private void ChangedNote(object? parameter)
+    private void SetOperationMode(object? parameter)
     {
-        Note = parameter switch
+        if (Parent?.Parent is MidiEditorViewModel editor &&
+            parameter is int value)
         {
-            Pitch pitch => pitch,
-            int number => (Pitch)number,
-            _ => _note
-        };
+            editor.PointerOperation = value;
+        }
+    }
+
+    [VeloxCommand]
+    private void Capture()
+    {
+        if(Parent?.Parent is MidiEditorViewModel editor)
+        {
+            editor.CapturedNote = this;
+        }
+    }
+
+    [VeloxCommand]
+    private void Release()
+    {
+        if (Parent?.Parent is MidiEditorViewModel editor)
+        {
+            editor.CapturedNote = null;
+        }
     }
 
     [VeloxCommand]

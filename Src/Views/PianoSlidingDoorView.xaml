@@ -87,8 +87,7 @@
                         <!-- 轨道背景绘制 -->
                         <ScrollViewer VerticalScrollBarVisibility="Hidden"
                                       HorizontalScrollBarVisibility="Hidden"
-                                      x:Name="BackDrawLineScrollViewer"
-                                      Focusable="False">
+                                      x:Name="BackDrawLineScrollViewer">
                             <ItemsControl ItemsSource="{Binding VisualTracks}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -128,7 +127,11 @@
                                     <ItemsPanelTemplate>
                                         <Canvas Height="{Binding NotesCanvasHeight}"
                                                 Width="{Binding CanvasWidth}"
-                                                SizeChanged="Canvas_SizeChanged"/>
+                                                SizeChanged="Canvas_SizeChanged"
+                                                MouseMove="Canvas_MouseMove"
+                                                MouseDown="Canvas_MouseDown"
+                                                MouseUp="Canvas_MouseUp"
+                                                Background="#01FFFFFF"/>
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemContainerStyle>
@@ -140,8 +143,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <local:NoteView Width="{Binding Width}"
-                                                        Height="{Binding Height}"
-                                                        Background="{Binding ElementName=Root,Path=PianoKeyBrush}"/>
+                                                        Height="{Binding Height}"/>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

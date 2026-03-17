@@ -33,6 +33,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] private TimeOrderableCollection<TextEventViewModel> _markers = [];
     [VeloxProperty] private TimeOrderableCollection<TextEventViewModel> _cues = [];
 
+    // 编辑音符时长所采用的对齐策略
     [VeloxProperty] private Alignment _alignment = Alignment.EighthNote;
 
     // [数据层] 计算属性
@@ -70,6 +71,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial ObservableCollection<PianoKeyViewModel> PianoKeys { get; internal set; } // 所有按键
     [VeloxProperty] public partial ObservableCollection<VisualTrackViewModel> VisualTracks { get; internal set; } // 视觉编辑轨
     [VeloxProperty] public partial Dictionary<int, PianoKeyViewModel> PianoKeysMap { get; internal set; } // 音符映射钢琴键
+    // 编辑音符所需要的
+    [VeloxProperty] public partial NoteEventViewModel? CapturedNote {  get; internal set; } // 被捕获的音符
+    [VeloxProperty] public partial double PointerLeft { get; internal set; } // 鼠标对于Canvas左侧
+    [VeloxProperty] public partial double PointerTop { get; internal set; } // 鼠标对于Canvas顶侧
+    [VeloxProperty] public partial int PointerNote { get; internal set; } // 鼠标所处音高
+    [VeloxProperty] public partial int PointerOperation {  get; internal set; } // 1 → AbsTime / 2 → DelTime / 3 → 整体移动
 
     public MidiEditorViewModel()
     {
@@ -134,7 +141,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         CanvasWidth = MaxTime * newValue;
         foreach (var note in CurrentNotes)
         {
-            UpdateNoteVerticalLayout(note);
+            UpdateNote(note);
         }
     }
 
@@ -172,6 +179,241 @@ public partial class MidiEditorViewModel : IMidiFormatable
     partial void OnViewportWidthChanged(double oldValue, double newValue)
     {
         UpdateViewportTimeRange();
+    }
+
+    #endregion
+
+    #region 画布交互
+
+    [VeloxCommand]
+    private void HitTest()
+    {
+        // 依据 PointerLeft 和 PointerNote 做命中测试
+        // 如果没有命中任何音符，但当前有被选中的音轨，那么需要在这个音轨创建对应 PointerNote 音高的，固定4分音符长度的音符
+    }
+
+    partial void OnPointerLeftChanged(double oldValue, double newValue)
+    {
+        if (CapturedNote == null || PointerOperation == 0) return;
+
+        long pointerTick = (long)(newValue / WidthPerTick);
+        long minNoteLength = GetMinNoteLength(); // 使用统一的最小长度
+
+        switch (PointerOperation)
+        {
+            case 1: // 调整起始时间
+                HandleAbsoluteTimeAdjustment(pointerTick, minNoteLength);
+                break;
+
+            case 2: // 调整持续时间
+                HandleDeltaTimeAdjustment(pointerTick, minNoteLength);
+                break;
+
+            case 3: // 整体移动
+                HandleNoteMove(pointerTick);
+                break;
+        }
+
+        if (CapturedNote != null)
+        {
+            UpdateNote(CapturedNote);
+        }
+    }
+
+    partial void OnPointerTopChanged(double oldValue, double newValue)
+    {
+        // 更新 PointerNote
+    }
+
+    public long GetAlignmentStep()
+    {
+        // 1. 提取组合后的对齐值
+        Alignment alignment = this._alignment;
+        long ppqn = this._pPQN;
+        int numerator = this.Numerator;
+        int denominator = this.Denominator;
+
+        // 2. 分离并验证基础音符时值部分
+        Alignment noteValue = alignment & Alignment.NoteValueMask;
+        if (noteValue == 0)
+        {
+            // 没有选择有效的音符时值，返回一个安全默认值（如八分音符）
+            return ppqn / 2;
+        }
+
+        // 3. 根据音符时值计算基础Tick数
+        long baseTicks = noteValue switch
+        {
+            Alignment.DoubleWholeNote => ppqn * 8,
+            Alignment.WholeNote => ppqn * 4,
+            Alignment.HalfNote => ppqn * 2,
+            Alignment.QuarterNote => ppqn,
+            Alignment.EighthNote => ppqn / 2,
+            Alignment.SixteenthNote => ppqn / 4,
+            Alignment.ThirtySecondNote => ppqn / 8,
+            Alignment.SixtyFourthNote => ppqn / 16,
+            Alignment.OneTwentyEighthNote => ppqn / 32,
+            _ => ppqn / 2, // 默认八分音符
+        };
+        // 确保基础Tick数为正整数
+        if (baseTicks <= 0) baseTicks = ppqn / 2;
+
+        // 4. 应用附点系数
+        double dotMultiplier = 1.0;
+        Alignment modifier = alignment & Alignment.ModifierMask;
+        switch (modifier)
+        {
+            case Alignment.Dot:
+                // 单附点：时长增加1/2
+                dotMultiplier = 1.5;
+                break;
+            case Alignment.DoubleDot:
+                // 双附点：时长增加1/2 + 1/4
+                dotMultiplier = 1.75;
+                break;
+        }
+
+        // 5. 应用连音系数
+        double tupletMultiplier = 1.0;
+        Alignment tuplet = alignment & Alignment.TupletMask;
+        switch (tuplet)
+        {
+            case Alignment.Triplet:
+                // 三连音：3个音符占原本2个音符的时长，所以每个音符时长为 2/3
+                tupletMultiplier = 2.0 / 3.0;
+                break;
+            case Alignment.Quintuplet:
+                // 五连音：5个音符占原本4个音符的时长，所以每个音符时长为 4/5
+                tupletMultiplier = 4.0 / 5.0;
+                break;
+            case Alignment.Septuplet:
+                // 七连音：7个音符占原本4个音符的时长，所以每个音符时长为 4/7
+                tupletMultiplier = 4.0 / 7.0;
+                break;
+        }
+
+        // 6. 计算最终Tick数
+        double finalTicksDouble = baseTicks * dotMultiplier * tupletMultiplier;
+        long finalTicks = (long)Math.Round(finalTicksDouble);
+
+        // 7. 新增：基于拍号的最小步长限制
+        long minStepByTimeSignature = CalculateMinStepByTimeSignature(ppqn, numerator, denominator);
+        if (finalTicks < minStepByTimeSignature)
+        {
+            finalTicks = minStepByTimeSignature;
+        }
+
+        // 8. 最终验证，确保结果为合理正数
+        if (finalTicks <= 0)
+        {
+            finalTicks = ppqn / 2; // 兜底为八分音符
+        }
+
+        return finalTicks;
+    }
+
+    private static long CalculateMinStepByTimeSignature(long ppqn, int numerator, int denominator)
+    {
+        // 基础：四分音符的Tick数
+        long quarterNoteTicks = ppqn;
+
+        // 计算"一拍"的Tick数
+        // 如果分母是4（四分音符为一拍），一拍 = ppqn
+        // 如果分母是8（八分音符为一拍），一拍 = ppqn / 2
+        // 公式：一拍Tick数 = ppqn * (4 / denominator)
+        long beatTicks = ppqn * 4 / denominator;
+
+        // 最短音符为一拍的一半（例如：四分音符为一拍时，最短为八分音符）
+        long minStep = beatTicks / 2;
+
+        // 确保最小步长不小于1
+        return Math.Max(1, minStep);
+    }
+
+    public long AlignTimeForward(long time)
+    {
+        long step = GetAlignmentStep();
+        if (step <= 0) return time;
+        // 向上取整
+        return ((time + step - 1) / step) * step;
+    }
+
+    public long AlignTimeBackward(long time)
+    {
+        long step = GetAlignmentStep();
+        if (step <= 0) return time;
+        // 向下取整
+        return (time / step) * step;
+    }
+
+    private void HandleNoteMove(long pointerTick)
+    {
+        if (CapturedNote == null) return;
+
+        // 计算音符的中心点（以Tick为单位）
+        long noteCenter = CapturedNote.AbsoluteTime + CapturedNote.DeltaTime / 2;
+
+        // 计算指针位置相对于音符中心的偏移
+        long centerOffset = pointerTick - noteCenter;
+
+        // 将偏移应用到音符中心，并找到最近的对齐点
+        long targetCenter = AlignTimeForward(noteCenter + centerOffset);
+
+        // 从中心点计算新的起始时间
+        long newAbsoluteTime = targetCenter - CapturedNote.DeltaTime / 2;
+
+        // 确保新起始时间不为负数
+        if (newAbsoluteTime >= 0)
+        {
+            CapturedNote.AbsoluteTime = newAbsoluteTime;
+        }
+    }
+
+    private void HandleAbsoluteTimeAdjustment(long pointerTick, long minNoteLength)
+    {
+        if (CapturedNote == null) return;
+
+        long alignedTime = AlignTimeForward(pointerTick);
+        long maxValidStartTime = AlignTimeBackward(
+            CapturedNote.AbsoluteTime + CapturedNote.DeltaTime - minNoteLength
+        );
+
+        if (alignedTime <= maxValidStartTime)
+        {
+            long originalEndTime = CapturedNote.AbsoluteTime + CapturedNote.DeltaTime;
+            CapturedNote.AbsoluteTime = alignedTime;
+            CapturedNote.DeltaTime = (int)(originalEndTime - alignedTime);
+        }
+        else
+        {
+            // 自动对齐到最大允许起始时间
+            CapturedNote.AbsoluteTime = maxValidStartTime;
+            CapturedNote.DeltaTime = (int)((CapturedNote.AbsoluteTime + CapturedNote.DeltaTime) - maxValidStartTime);
+        }
+    }
+
+    private void HandleDeltaTimeAdjustment(long pointerTick, long minNoteLength)
+    {
+        if (CapturedNote == null) return;
+
+        long alignedEndTime = AlignTimeForward(pointerTick);
+        long minValidEndTime = AlignTimeForward(CapturedNote.AbsoluteTime + minNoteLength);
+
+        if (alignedEndTime >= minValidEndTime)
+        {
+            CapturedNote.DeltaTime = (int)(alignedEndTime - CapturedNote.AbsoluteTime);
+        }
+        else
+        {
+            CapturedNote.DeltaTime = (int)(minValidEndTime - CapturedNote.AbsoluteTime);
+        }
+    }
+
+    public long GetMinNoteLength()
+    {
+        long alignmentStep = GetAlignmentStep();
+        long timeSignatureMinStep = CalculateMinStepByTimeSignature(PPQN, Numerator, Denominator);
+        return Math.Max(alignmentStep, timeSignatureMinStep);
     }
 
     #endregion
@@ -286,11 +528,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
         CurrentNotes.Virtualize(0, MaxTime);
         foreach (var note in CurrentNotes)
         {
-            UpdateNoteVerticalLayout(note);
+            UpdateNote(note);
         }
     }
 
-    internal void UpdateNoteVerticalLayout(NoteEventViewModel noteEventVm)
+    internal void UpdateNote(NoteEventViewModel noteEventVm)
     {
         if (noteEventVm == null || PianoKeysMap == null) return;
 

@@ -1,29 +1,15 @@
 ﻿using Auris_Studio.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
-using VeloxDev.Core.DynamicTheme;
-using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.Views
 {
-    [ThemeConfig<ObjectConverter, Dark, Light>(nameof(PianoKeyBrush), ["#00FFFF"], ["#FFA500"])]
     public partial class PianoSlidingDoorView : UserControl
     {
         public PianoSlidingDoorView()
         {
             InitializeComponent();
-            InitializeTheme();
         }
-
-        public Brush PianoKeyBrush
-        {
-            get { return (Brush)GetValue(PianoKeyBrushProperty); }
-            set { SetValue(PianoKeyBrushProperty, value); }
-        }
-        public static readonly DependencyProperty PianoKeyBrushProperty =
-            DependencyProperty.Register(nameof(PianoKeyBrush), typeof(Brush), typeof(PianoSlidingDoorView),
-                new PropertyMetadata(Brushes.Cyan));
 
         private void VerticalScrollBar_OffsetChanged(object? sender, double e)
         {
@@ -66,6 +52,32 @@ namespace Auris_Studio.Views
                 vm.ViewportTop = VerticalScrollBar.Offset;
                 vm.ViewportWidth = HorizontalScrollBar.ActualWidth;
                 vm.ViewportHeight = HorizontalScrollBar.ActualHeight;
+            }
+        }
+
+        private void Canvas_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            var point = e.GetPosition(sender as Canvas);
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.PointerLeft = point.X;
+                vm.PointerTop = point.Y;
+            }
+        }
+
+        private void Canvas_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.HitTestCommand.Execute(null);
+            }
+        }
+
+        private void Canvas_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.CapturedNote = null;
             }
         }
     }
