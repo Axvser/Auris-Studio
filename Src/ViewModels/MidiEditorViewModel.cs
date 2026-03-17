@@ -72,11 +72,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial ObservableCollection<VisualTrackViewModel> VisualTracks { get; internal set; } // 视觉编辑轨
     [VeloxProperty] public partial Dictionary<int, PianoKeyViewModel> PianoKeysMap { get; internal set; } // 音符映射钢琴键
     // 编辑音符所需要的
-    [VeloxProperty] public partial NoteEventViewModel? CapturedNote {  get; internal set; } // 被捕获的音符
+    [VeloxProperty] public partial NoteSpatialGridHashMap NoteSpatialIndex { get; internal set; } // 哈希空间索引
+    [VeloxProperty] public partial NoteEventViewModel? CapturedNote { get; internal set; } // 被捕获的音符
     [VeloxProperty] public partial double PointerLeft { get; internal set; } // 鼠标对于Canvas左侧
     [VeloxProperty] public partial double PointerTop { get; internal set; } // 鼠标对于Canvas顶侧
     [VeloxProperty] public partial int PointerNote { get; internal set; } // 鼠标所处音高
-    [VeloxProperty] public partial int PointerOperation {  get; internal set; } // 1 → AbsTime / 2 → DelTime / 3 → 整体移动
+    [VeloxProperty] public partial int PointerOperation { get; internal set; } // 1 → AbsTime / 2 → DelTime / 3 → 整体移动
 
     public MidiEditorViewModel()
     {
@@ -85,6 +86,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         VisualTracks = [];
         PianoKeysMap = [];
         PianoKeys = [];
+        NoteSpatialIndex = new();
 
         BPM = 120;
         Numerator = 4;
@@ -99,6 +101,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
         Tracks.CollectionChanged += OnTracksChanged;
         Texts.CollectionChanged += OnTextsChanged;
+        CurrentNotes.CollectionChanged += OnSpatialndexNotesChanged;
 
         Tempos.CollectionChanged += OnTempoEventsChanged;
         Tss.CollectionChanged += OnTimeSignatureEventsChanged;
@@ -188,8 +191,82 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxCommand]
     private void HitTest()
     {
-        // 依据 PointerLeft 和 PointerNote 做命中测试
-        // 如果没有命中任何音符，但当前有被选中的音轨，那么需要在这个音轨创建对应 PointerNote 音高的，固定4分音符长度的音符
+        // 0. 安全检查
+        if (PointerLeft < 0 || PointerTop < 0) return;
+
+        // 1. 使用空间索引进行高性能点查询
+        var hitNote = NoteSpatialIndex.PointQuery(PointerLeft, NotesCanvasHeight - PointerTop);
+
+        if (hitNote != null)
+        {
+            return;
+        }
+        else
+        {
+            // 3.1 没有命中任何音符
+            CapturedNote = null;
+            PointerOperation = 0;
+
+            // 3.2 根据PointerTop计算当前音高
+            int currentNotePitch = FindPitchByTop(NotesCanvasHeight - PointerTop);
+            PointerNote = currentNotePitch;
+
+            // 3.3 如果有选中的音轨，创建新音符
+            if (CurrentSelectedTrack != null)
+            {
+                CreateNoteAtPosition((long)(PointerLeft / WidthPerTick), currentNotePitch);
+            }
+        }
+    }
+
+    private void CreateNoteAtPosition(long absoluteTime, int pitch)
+    {
+        if (CurrentSelectedTrack == null) return;
+
+        // 1. 对齐到最近的对齐点
+        long alignedTime = AlignTimeForward(absoluteTime);
+
+        // 2. 获取最小音符长度
+        long minNoteLength = GetMinNoteLength();
+
+        // 3. 创建默认长度的音符
+        int defaultDeltaTime = (int)Math.Max(GetAlignmentStep(), minNoteLength);
+        defaultDeltaTime = (int)AlignTimeForward(defaultDeltaTime);
+
+        // 4. 创建MIDI事件
+        var noteOnEvent = new NoteOnEvent(
+            absoluteTime: alignedTime,
+            channel: CurrentSelectedTrack.Channel,
+            noteNumber: pitch,
+            velocity: 100, // 默认力度
+            duration: defaultDeltaTime);
+
+        var noteOffEvent = new NoteEvent(
+            absoluteTime: alignedTime + defaultDeltaTime,
+            channel: CurrentSelectedTrack.Channel,
+            commandCode: MidiCommandCode.NoteOff,
+            noteNumber: pitch,
+            velocity: 0);
+
+        noteOnEvent.OffEvent = noteOffEvent;
+
+        // 5. 创建视图模型
+        var noteVm = new NoteEventViewModel();
+        noteVm.Read(Tuple.Create(noteOnEvent, noteOffEvent));
+
+        // 6. 设置父轨道
+        noteVm.Parent = CurrentSelectedTrack;
+
+        // 7. 添加到轨道
+        CurrentSelectedTrack.Notes.Add(noteVm);
+
+        // 8. 自动选中新创建的音符
+        CapturedNote = noteVm;
+
+        // 9. 根据点击位置确定操作类型
+        PointerOperation = 3;
+
+        UpdateNote(noteVm);
     }
 
     partial void OnPointerLeftChanged(double oldValue, double newValue)
@@ -222,7 +299,16 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
     partial void OnPointerTopChanged(double oldValue, double newValue)
     {
-        // 更新 PointerNote
+        PointerNote = FindPitchByTop(NotesCanvasHeight - newValue);
+    }
+
+    partial void OnPointerNoteChanged(int oldValue, int newValue)
+    {
+        if (CapturedNote is not null &&
+            PointerOperation == 3)
+        {
+            CapturedNote.Note = (Pitch)newValue;
+        }
     }
 
     public long GetAlignmentStep()
@@ -230,7 +316,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         // 1. 提取组合后的对齐值
         Alignment alignment = this._alignment;
         long ppqn = this._pPQN;
-        int numerator = this.Numerator;
         int denominator = this.Denominator;
 
         // 2. 分离并验证基础音符时值部分
@@ -297,7 +382,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         long finalTicks = (long)Math.Round(finalTicksDouble);
 
         // 7. 新增：基于拍号的最小步长限制
-        long minStepByTimeSignature = CalculateMinStepByTimeSignature(ppqn, numerator, denominator);
+        long minStepByTimeSignature = CalculateMinStepByTimeSignature(ppqn, denominator);
         if (finalTicks < minStepByTimeSignature)
         {
             finalTicks = minStepByTimeSignature;
@@ -312,21 +397,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
         return finalTicks;
     }
 
-    private static long CalculateMinStepByTimeSignature(long ppqn, int numerator, int denominator)
+    private static long CalculateMinStepByTimeSignature(long ppqn, int denominator)
     {
-        // 基础：四分音符的Tick数
-        long quarterNoteTicks = ppqn;
-
-        // 计算"一拍"的Tick数
-        // 如果分母是4（四分音符为一拍），一拍 = ppqn
-        // 如果分母是8（八分音符为一拍），一拍 = ppqn / 2
-        // 公式：一拍Tick数 = ppqn * (4 / denominator)
         long beatTicks = ppqn * 4 / denominator;
-
-        // 最短音符为一拍的一半（例如：四分音符为一拍时，最短为八分音符）
         long minStep = beatTicks / 2;
-
-        // 确保最小步长不小于1
         return Math.Max(1, minStep);
     }
 
@@ -412,8 +486,52 @@ public partial class MidiEditorViewModel : IMidiFormatable
     public long GetMinNoteLength()
     {
         long alignmentStep = GetAlignmentStep();
-        long timeSignatureMinStep = CalculateMinStepByTimeSignature(PPQN, Numerator, Denominator);
+        long timeSignatureMinStep = CalculateMinStepByTimeSignature(PPQN, Denominator);
         return Math.Max(alignmentStep, timeSignatureMinStep);
+    }
+
+    private int FindPitchByTop(double pointerTop)
+    {
+        if (PianoKeys == null || PianoKeys.Count == 0)
+            return 0; // 返回默认值
+
+        // 在钢琴键中查找包含pointerTop的键
+        foreach (var pianoKey in PianoKeys)
+        {
+            double keyTop = pianoKey.Bottom;
+            double keyBottom = keyTop + pianoKey.Height;
+
+            if (pointerTop >= keyTop && pointerTop < keyBottom)
+            {
+                return pianoKey.Note;
+            }
+        }
+
+        // 如果没有找到，返回最近的音高
+        return FindNearestPitch(pointerTop);
+    }
+
+    private int FindNearestPitch(double pointerTop)
+    {
+        if (PianoKeys == null || PianoKeys.Count == 0)
+            return 60; // 返回中央C（C4）
+
+        PianoKeyViewModel? nearestKey = null;
+        double minDistance = double.MaxValue;
+
+        foreach (var pianoKey in PianoKeys)
+        {
+            double keyCenter = pianoKey.Bottom + pianoKey.Height / 2;
+            double distance = Math.Abs(pointerTop - keyCenter);
+
+            if (distance < minDistance)
+            {
+                minDistance = distance;
+                nearestKey = pianoKey;
+            }
+        }
+
+        return nearestKey?.Note ?? 60;
     }
 
     #endregion
@@ -536,9 +654,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         if (noteEventVm == null || PianoKeysMap == null) return;
 
-        noteEventVm.Left = noteEventVm.AbsoluteTime * WidthPerTick;
-        noteEventVm.Width = noteEventVm.DeltaTime * WidthPerTick;
+        // 计算新的位置
+        double newLeft = noteEventVm.AbsoluteTime * WidthPerTick;
+        double newWidth = noteEventVm.DeltaTime * WidthPerTick;
 
+        // 获取音高对应的钢琴键
         int targetNoteNumber = (int)noteEventVm.Note;
 
         if (PianoKeysMap.TryGetValue(targetNoteNumber, out var pianoKey))
@@ -553,7 +673,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
             {
                 hasUpBlack = true;
             }
-            noteEventVm.Height = (hasDownBlack, hasUpBlack, pianoKey.Type) switch
+
+            double newHeight = (hasDownBlack, hasUpBlack, pianoKey.Type) switch
             {
                 (true, true, PianoKeyType.White) => pianoKey.Height - BlackNoteHeight,
                 (true, false, PianoKeyType.White) => pianoKey.Height - BlackNoteHeight / 2,
@@ -561,11 +682,19 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 (_, _, PianoKeyType.Black) => pianoKey.Height,
                 _ => 0
             };
-            noteEventVm.Bottom = (hasDownBlack, pianoKey.Type) switch
+
+            double newBottom = (hasDownBlack, pianoKey.Type) switch
             {
                 (true, PianoKeyType.White) => pianoKey.Bottom + BlackNoteHeight / 2,
                 _ => pianoKey.Bottom
             };
+
+            // 更新音符的UI属性
+            // NoteEventViewModel的Left/Bottom/Width/Height属性变化会自动触发空间索引更新
+            noteEventVm.Left = newLeft;
+            noteEventVm.Bottom = newBottom;
+            noteEventVm.Width = newWidth;
+            noteEventVm.Height = newHeight;
         }
     }
 
@@ -672,6 +801,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         foreach (var note in track.Notes)
                         {
                             CurrentNotes.Add(note);
+                            NoteSpatialIndex.Insert(note);
                         }
                         UpdateCurrentNotes();
                     }
@@ -690,6 +820,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         foreach (var note in track.Notes)
                         {
                             CurrentNotes.Remove(note);
+                            NoteSpatialIndex.Remove(note);
                         }
                     }
                 }
@@ -717,6 +848,32 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     foreach (NoteEventViewModel note in e.OldItems)
                     {
                         CurrentNotes.Remove(note);
+                    }
+                }
+                break;
+        }
+    }
+
+    private void OnSpatialndexNotesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        switch (e.Action)
+        {
+            case NotifyCollectionChangedAction.Add:
+                if (e.NewItems is not null)
+                {
+                    foreach (NoteEventViewModel note in e.NewItems)
+                    {
+                        NoteSpatialIndex.Insert(note);
+                    }
+                }
+                break;
+
+            case NotifyCollectionChangedAction.Remove:
+                if (e.OldItems is not null)
+                {
+                    foreach (NoteEventViewModel note in e.OldItems)
+                    {
+                        NoteSpatialIndex.Remove(note);
                     }
                 }
                 break;
@@ -1002,6 +1159,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
             Tracks.Add(trackVm);
         }
+
+        Tracks.FirstOrDefault()?.TrackSelectCommand.Execute(null);
 
         UpdateCurrentTempo(NowTime);
         UpdateCurrentTimeSignature(NowTime);
