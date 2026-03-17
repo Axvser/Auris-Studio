@@ -70,15 +70,13 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial ObservableCollection<PianoKeyViewModel> PianoKeys { get; internal set; } // 所有按键
     [VeloxProperty] public partial ObservableCollection<VisualTrackViewModel> VisualTracks { get; internal set; } // 视觉编辑轨
     [VeloxProperty] public partial Dictionary<int, PianoKeyViewModel> PianoKeysMap { get; internal set; } // 音符映射钢琴键
-    [VeloxProperty] public partial ObservableCollection<CuttingLineViewModel> CuttingLines { get; internal set; } // 划分线
-
+ 
     public MidiEditorViewModel()
     {
         CurrentNotes = [];
         ActiveTracks = [];
         VisualTracks = [];
         PianoKeysMap = [];
-        CuttingLines = [];
         PianoKeys = [];
 
         BPM = 120;
@@ -113,7 +111,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
     partial void OnMaxTimeChanged(long oldValue, long newValue)
     {
         CanvasWidth = WidthPerTick * newValue;
-        LoadCuttingLines(oldValue, newValue);
     }
 
     partial void OnBPMChanged(int oldValue, int newValue) => UpdateTickTime();
@@ -278,11 +275,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
             visualTrack.Bottom = pianoKey.Bottom;
             visualTrack.Height = pianoKey.Height;
         }
-    }
-
-    private void LoadCuttingLines(long startTick, long endTick)
-    {
-        if (endTick <= startTick) return;
     }
 
     private void UpdateNotesCanvasHeight()

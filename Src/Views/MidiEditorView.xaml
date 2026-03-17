@@ -39,7 +39,9 @@
 
             <Grid Grid.Column="1">
                 <local:PianoSlidingDoorView x:Name="PianoSlidingDoorView"
-                                            DataContext="{Binding ElementName=Root,Path=DataContext}" />
+                                            DataContext="{Binding ElementName=Root,Path=DataContext}"
+                                            Background="{Binding ElementName=Root,Path=Background}"
+                                            Foreground="{Binding ElementName=Root,Path=Foreground}"/>
             </Grid>
         </Grid>
 
