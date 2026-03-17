@@ -1,59 +1,49 @@
 ﻿using Auris_Studio.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using VeloxDev.Core.DynamicTheme;
+using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.Views
 {
+    [ThemeConfig<ObjectConverter, Dark, Light>(nameof(PianoKeyBrush), ["#00FFFF"], ["#FFA500"])]
     public partial class PianoSlidingDoorView : UserControl
     {
         public PianoSlidingDoorView()
         {
             InitializeComponent();
-
-            // 这儿暂时找不出问题，只知道非得窗口尺寸变一下，获取到的Viewport相关信息才对
-            DataContextChanged += PianoSlidingDoorView_DataContextChanged;
+            InitializeTheme();
         }
 
-        private void PianoSlidingDoorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        public Brush PianoKeyBrush
         {
-            Application.Current.MainWindow.Width += 1;
-            Application.Current.MainWindow.Width -= 1;
+            get { return (Brush)GetValue(PianoKeyBrushProperty); }
+            set { SetValue(PianoKeyBrushProperty, value); }
         }
-
-        public double HorizontalOffset
-        {
-            get { return (double)GetValue(HorizontalOffsetProperty); }
-            set { SetValue(HorizontalOffsetProperty, value); }
-        }
-        public static readonly DependencyProperty HorizontalOffsetProperty =
-            DependencyProperty.Register(nameof(HorizontalOffset), typeof(double), typeof(PianoSlidingDoorView), new PropertyMetadata(0d, OnHorizontalOffsetChanged));
-
-        public double HorizontalViewportWidth
-        {
-            get { return (double)GetValue(HorizontalViewportWidthProperty); }
-            set { SetValue(HorizontalViewportWidthProperty, value); }
-        }
-        public static readonly DependencyProperty HorizontalViewportWidthProperty =
-            DependencyProperty.Register(nameof(HorizontalViewportWidth), typeof(double), typeof(PianoSlidingDoorView), new PropertyMetadata(0d));
+        public static readonly DependencyProperty PianoKeyBrushProperty =
+            DependencyProperty.Register(nameof(PianoKeyBrush), typeof(Brush), typeof(PianoSlidingDoorView),
+                new PropertyMetadata(Brushes.Cyan));
 
         private void VerticalScrollBar_OffsetChanged(object? sender, double e)
         {
             NotesScrollViewer.ScrollToVerticalOffset(e);
             PianoKeysScrollViewer.ScrollToVerticalOffset(e);
             BackDrawLineScrollViewer.ScrollToVerticalOffset(e);
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.ViewportTop = e;
+            }
         }
 
-        private static void OnHorizontalOffsetChanged(object? sender, DependencyPropertyChangedEventArgs e)
+        private void HorizontalScrollBar_OffsetChanged(object sender, double e)
         {
-            if (sender is PianoSlidingDoorView view &&
-               e.NewValue is double value &&
-               view.DataContext is MidiEditorViewModel vm)
+            NotesScrollViewer.ScrollToHorizontalOffset(e);
+            PianoKeysScrollViewer.ScrollToHorizontalOffset(e);
+            BackDrawLineScrollViewer.ScrollToHorizontalOffset(e);
+            if (DataContext is MidiEditorViewModel vm)
             {
-                view.NotesScrollViewer.ScrollToHorizontalOffset(value);
-                view.TopCuttingLinesScrollViewer.ScrollToHorizontalOffset(value);
-                view.CenterCuttingLinesScrollViewer.ScrollToHorizontalOffset(value);
-                view.HorizontalViewportWidth = view.NotesScrollViewer.ViewportWidth;
-                vm.ViewportLeft = value;
+                vm.ViewportLeft = e;
             }
         }
 
@@ -61,8 +51,10 @@ namespace Auris_Studio.Views
         {
             if (DataContext is MidiEditorViewModel vm)
             {
-                HorizontalViewportWidth = NotesScrollViewer.ViewportWidth;
+                vm.ViewportLeft = HorizontalScrollBar.Offset;
+                vm.ViewportTop = VerticalScrollBar.Offset;
                 vm.ViewportWidth = e.NewSize.Width;
+                vm.ViewportHeight = e.NewSize.Height;
             }
         }
     }

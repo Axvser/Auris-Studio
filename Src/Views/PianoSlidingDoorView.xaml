@@ -7,132 +7,31 @@
              mc:Ignorable="d" 
              d:DesignHeight="250" d:DesignWidth="400"
              xmlns:vm="clr-namespace:Auris_Studio.ViewModels"
-             d:DataContext="{d:DesignInstance Type=vm:MidiEditorViewModel,IsDesignTimeCreatable=True}">
+             d:DataContext="{d:DesignInstance Type=vm:MidiEditorViewModel,IsDesignTimeCreatable=True}"
+             x:Name="Root">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="20"/>
-            <RowDefinition />
+            <RowDefinition Height="1*"/>
+            <RowDefinition Height="4"/>
+            <RowDefinition Height="0.618*"/>
         </Grid.RowDefinitions>
-
-        <!-- 顶侧刻度线（带文本） -->
+        <!-- 钢琴卷帘门 -->
         <Grid Grid.Row="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="80"/>
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-            <Grid Grid.Column="1">
-                <ScrollViewer VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Hidden"
-                              x:Name="TopCuttingLinesScrollViewer">
-                    <ItemsControl ItemsSource="{Binding CuttingLines}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <Canvas Width="{Binding CanvasWidth}"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemContainerStyle>
-                            <Style>
-                                <Setter Property="Canvas.Left" Value="{Binding Left}"/>
-                            </Style>
-                        </ItemsControl.ItemContainerStyle>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Line X1="0" X2="0" 
-                                          Y1="0" Y2="20"
-                                          Stroke="Gray" 
-                                          StrokeThickness="{Binding Width}"/>
-                                    <TextBlock Text="{Binding Text}"
-                                               FontSize="9"
-                                               Foreground="DarkGray"
-                                               VerticalAlignment="Top"
-                                               Visibility="{Binding Text, TargetNullValue=Collapsed, FallbackValue=Collapsed}">
-                                        <TextBlock.LayoutTransform>
-                                            <RotateTransform Angle="45"/>
-                                        </TextBlock.LayoutTransform>
-                                    </TextBlock>
-                                </Grid>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Grid>
-        </Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="20"/>
+                <RowDefinition />
+            </Grid.RowDefinitions>
 
-        <!-- 钢琴卷帘门绘制 -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="80"/>
-                <ColumnDefinition />
-            </Grid.ColumnDefinitions>
-
-            <!-- 钢琴按键绘制 -->
-            <Grid Grid.Column="0">
-                <ScrollViewer VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Hidden"
-                              x:Name="PianoKeysScrollViewer">
-                    <ItemsControl ItemsSource="{Binding PianoKeys}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <Canvas Height="{Binding NotesCanvasHeight}"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemContainerStyle>
-                            <Style>
-                                <Setter Property="Canvas.Bottom" Value="{Binding Bottom}" />
-                                <Setter Property="Canvas.ZIndex" Value="{Binding Layer}" />
-                            </Style>
-                        </ItemsControl.ItemContainerStyle>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <local:PianoKeyView Text="{Binding Text}"
-                                                    Type="{Binding Type}"
-                                                    Height="{Binding Height}"
-                                                    HorizontalAlignment="Left"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Grid>
-
-            <Grid Grid.Column="1">
+            <!-- 顶侧刻度线（带文本） -->
+            <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80"/>
                     <ColumnDefinition />
-                    <ColumnDefinition Width="15"/>
                 </Grid.ColumnDefinitions>
-                <Grid Grid.Column="0">
-                    <!-- 轨道背景绘制 -->
+                <Grid Grid.Column="1">
                     <ScrollViewer VerticalScrollBarVisibility="Hidden"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  x:Name="BackDrawLineScrollViewer"
-                                  Focusable="False">
-                        <ItemsControl ItemsSource="{Binding VisualTracks}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <Canvas Height="{Binding NotesCanvasHeight}"
-                                            Width="{Binding CanvasWidth}"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemContainerStyle>
-                                <Style>
-                                    <Setter Property="Canvas.Bottom" Value="{Binding Bottom}" />
-                                    <Setter Property="Canvas.ZIndex" Value="{Binding Layer}" />
-                                </Style>
-                            </ItemsControl.ItemContainerStyle>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <local:TrackBackgroundView Type="{Binding Type}"
-                                                               Height="{Binding Height}"
-                                                               Width="{Binding RelativeSource={RelativeSource AncestorType=local:PianoSlidingDoorView},Path=DataContext.CanvasWidth}"/>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-
-                    <!-- 中部刻度线（不带文本） -->
-                    <ScrollViewer VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Hidden"
-                              x:Name="CenterCuttingLinesScrollViewer">
+                          HorizontalScrollBarVisibility="Hidden"
+                          x:Name="TopCuttingLinesScrollViewer">
                         <ItemsControl ItemsSource="{Binding CuttingLines}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -146,55 +45,196 @@
                             </ItemsControl.ItemContainerStyle>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Line X1="0" X2="0" 
-                                          Y1="0" Y2="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"
-                                          Stroke="LightGray" 
-                                          StrokeThickness="{Binding Width}"/>
+                                    <Grid>
+                                        <Line X1="0" X2="0" 
+                                      Y1="0" Y2="20"
+                                      Stroke="Gray" 
+                                      StrokeThickness="{Binding Width}"/>
+                                        <TextBlock Text="{Binding Text}"
+                                           FontSize="9"
+                                           Foreground="DarkGray"
+                                           VerticalAlignment="Top"
+                                           Visibility="{Binding Text, TargetNullValue=Collapsed, FallbackValue=Collapsed}">
+                                            <TextBlock.LayoutTransform>
+                                                <RotateTransform Angle="45"/>
+                                            </TextBlock.LayoutTransform>
+                                        </TextBlock>
+                                    </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
+                </Grid>
+            </Grid>
 
-                     <!-- 音符绘制 -->
+            <!-- 钢琴卷帘门绘制 -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+
+                <!-- 钢琴按键绘制 -->
+                <Grid Grid.Column="0">
                     <ScrollViewer VerticalScrollBarVisibility="Hidden"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  x:Name="NotesScrollViewer"
-                                  SizeChanged="NotesScrollViewer_SizeChanged">
-                        <ItemsControl ItemsSource="{Binding CurrentNotes}"
-                                      Height="{Binding NotesCanvasHeight}"
-                                      Width="{Binding CanvasWidth}"
-                                      HorizontalAlignment="Left"
-                                      VerticalAlignment="Top">
+                          HorizontalScrollBarVisibility="Hidden"
+                          x:Name="PianoKeysScrollViewer">
+                        <ItemsControl ItemsSource="{Binding PianoKeys}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                    <Canvas Height="{Binding NotesCanvasHeight}"
-                                            Width="{Binding CanvasWidth}"/>
+                                    <Canvas Height="{Binding NotesCanvasHeight}"/>
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemContainerStyle>
                                 <Style>
-                                    <Setter Property="Canvas.Left" Value="{Binding Left}" />
                                     <Setter Property="Canvas.Bottom" Value="{Binding Bottom}" />
+                                    <Setter Property="Canvas.ZIndex" Value="{Binding Layer}" />
                                 </Style>
                             </ItemsControl.ItemContainerStyle>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <local:NoteView Width="{Binding Width}"
-                                                    Height="{Binding Height}"
-                                                    Background="Orange"/>
+                                    <local:PianoKeyView Text="{Binding Text}"
+                                                Type="{Binding Type}"
+                                                Height="{Binding Height}"
+                                                HorizontalAlignment="Left"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
                 </Grid>
+
                 <Grid Grid.Column="1">
-                    <local:ScrollBar x:Name="VerticalScrollBar"
-                                     Minimum="0"
-                                     Maximum="{Binding NotesCanvasHeight}"
-                                     ViewportSize="{Binding ElementName=NotesScrollViewer,Path=ViewportHeight}"
-                                     OffsetChanged="VerticalScrollBar_OffsetChanged"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="15"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0">
+                        <!-- 轨道背景绘制 -->
+                        <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Hidden"
+                              x:Name="BackDrawLineScrollViewer"
+                              Focusable="False">
+                            <ItemsControl ItemsSource="{Binding VisualTracks}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas Height="{Binding NotesCanvasHeight}"
+                                        Width="{Binding CanvasWidth}"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style>
+                                        <Setter Property="Canvas.Bottom" Value="{Binding Bottom}" />
+                                        <Setter Property="Canvas.ZIndex" Value="{Binding Layer}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <local:TrackBackgroundView Type="{Binding Type}"
+                                                           Height="{Binding Height}"
+                                                           Width="{Binding RelativeSource={RelativeSource AncestorType=local:PianoSlidingDoorView},Path=DataContext.CanvasWidth}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <!-- 中部刻度线（不带文本） -->
+                        <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                          HorizontalScrollBarVisibility="Hidden"
+                          x:Name="CenterCuttingLinesScrollViewer">
+                            <ItemsControl ItemsSource="{Binding CuttingLines}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas Width="{Binding CanvasWidth}"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style>
+                                        <Setter Property="Canvas.Left" Value="{Binding Left}"/>
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Line X1="0" X2="0" 
+                                      Y1="0" Y2="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Canvas}}"
+                                      Stroke="LightGray" 
+                                      StrokeThickness="{Binding Width}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <!-- 音符绘制 -->
+                        <ScrollViewer VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Hidden"
+                              x:Name="NotesScrollViewer"
+                              SizeChanged="NotesScrollViewer_SizeChanged">
+                            <ItemsControl ItemsSource="{Binding CurrentNotes}"
+                                  Height="{Binding NotesCanvasHeight}"
+                                  Width="{Binding CanvasWidth}"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Top">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas Height="{Binding NotesCanvasHeight}"
+                                        Width="{Binding CanvasWidth}"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style>
+                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                                        <Setter Property="Canvas.Bottom" Value="{Binding Bottom}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <local:NoteView Width="{Binding Width}"
+                                                Height="{Binding Height}"
+                                                Background="{Binding ElementName=Root,Path=PianoKeyBrush}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                    <Grid Grid.Column="1">
+                        <local:ScrollBar x:Name="VerticalScrollBar"
+                                         Minimum="0"
+                                         Maximum="{Binding NotesCanvasHeight}"
+                                         ViewportSize="{Binding ElementName=NotesScrollViewer,Path=ViewportHeight}"
+                                         OffsetChanged="VerticalScrollBar_OffsetChanged"/>
+                    </Grid>
                 </Grid>
             </Grid>
         </Grid>
+
+        <!-- 分割 -->
+        <GridSplitter Grid.Row="1" 
+                      VerticalAlignment="Stretch" 
+                      HorizontalAlignment="Stretch" 
+                      Background="{Binding ElementName=Root,Path=Background}"/>
+        
+        <!-- 控制器 -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="30"/>
+                <RowDefinition />
+                <RowDefinition Height="15"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <local:ScrollBar x:Name="HorizontalScrollBar"
+                                 Orientation="Horizontal"
+                                 Grid.Column="1"
+                                 Minimum="0"
+                                 Maximum="{Binding CanvasWidth}"
+                                 ViewportSize="{Binding ElementName=NotesScrollViewer,Path=ViewportWidth}"
+                                 OffsetChanged="HorizontalScrollBar_OffsetChanged"/>
+            </Grid>
+        </Grid>
     </Grid>
+    
+    
 </UserControl>

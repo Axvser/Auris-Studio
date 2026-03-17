@@ -54,8 +54,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial double CanvasWidth { get; internal set; } // [共享]画布宽度
     [VeloxProperty] public partial double NotesCanvasHeight { get; internal set; } // [音符]画布高度
     [VeloxProperty] public partial double ControlCanvasHeight { get; internal set; } // [控制器]画布高度
-    [VeloxProperty] public partial double ViewportLeft { get; internal set; } // [可见区域]距离父容器左边界的长度
+    [VeloxProperty] public partial double ViewportLeft { get; internal set; } // [可见区域]距离父容器左边界的距离
+    [VeloxProperty] public partial double ViewportTop { get; internal set; } // [可见区域]距离父容器上边界的距离
     [VeloxProperty] public partial double ViewportWidth { get; internal set; } // [可见区域]宽度
+    [VeloxProperty] public partial double ViewportHeight { get; internal set; } // [可见区域]高度
     [VeloxProperty] public partial long ViewportStartTime { get; internal set; } // [可见区域]起始时间
     [VeloxProperty] public partial long ViewportEndTime { get; internal set; } // [可见区域]结束时间
     [VeloxProperty] public partial double WidthPerQuarterNote { get; internal set; } // 每四分音符长度
@@ -111,6 +113,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     partial void OnMaxTimeChanged(long oldValue, long newValue)
     {
         CanvasWidth = WidthPerTick * newValue;
+        LoadCuttingLines(oldValue, newValue);
     }
 
     partial void OnBPMChanged(int oldValue, int newValue) => UpdateTickTime();
@@ -275,6 +278,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
             visualTrack.Bottom = pianoKey.Bottom;
             visualTrack.Height = pianoKey.Height;
         }
+    }
+
+    private void LoadCuttingLines(long startTick, long endTick)
+    {
+        if (endTick <= startTick) return;
     }
 
     private void UpdateNotesCanvasHeight()
