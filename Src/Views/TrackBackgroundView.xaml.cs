@@ -1,10 +1,6 @@
 ﻿using Auris_Studio.ViewModels;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
 using System.Windows.Media;
 using VeloxDev.Core.DynamicTheme;
 using VeloxDev.WPF.PlatformAdapters;

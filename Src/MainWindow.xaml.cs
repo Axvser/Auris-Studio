@@ -1,10 +1,5 @@
-using Auris_Studio.ViewModels;
-using Auris_Studio.ViewModels.Helpers;
-using System.Diagnostics;
-using System.IO;
 using System.Windows;
 using VeloxDev.Core.DynamicTheme;
-using VeloxDev.Core.Extension;
 using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio

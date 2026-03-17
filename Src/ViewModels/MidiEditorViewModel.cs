@@ -70,7 +70,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial ObservableCollection<PianoKeyViewModel> PianoKeys { get; internal set; } // 所有按键
     [VeloxProperty] public partial ObservableCollection<VisualTrackViewModel> VisualTracks { get; internal set; } // 视觉编辑轨
     [VeloxProperty] public partial Dictionary<int, PianoKeyViewModel> PianoKeysMap { get; internal set; } // 音符映射钢琴键
- 
+
     public MidiEditorViewModel()
     {
         CurrentNotes = [];
@@ -134,8 +134,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         CanvasWidth = MaxTime * newValue;
         foreach (var note in CurrentNotes)
         {
-            note.Left = note.AbsoluteTime * WidthPerTick;
-            note.Width = note.DeltaTime * WidthPerTick;
             UpdateNoteVerticalLayout(note);
         }
     }
@@ -288,15 +286,16 @@ public partial class MidiEditorViewModel : IMidiFormatable
         CurrentNotes.Virtualize(0, MaxTime);
         foreach (var note in CurrentNotes)
         {
-            note.Left = note.AbsoluteTime * WidthPerTick;
-            note.Width = note.DeltaTime * WidthPerTick;
             UpdateNoteVerticalLayout(note);
         }
     }
 
-    private void UpdateNoteVerticalLayout(NoteEventViewModel noteEventVm)
+    internal void UpdateNoteVerticalLayout(NoteEventViewModel noteEventVm)
     {
         if (noteEventVm == null || PianoKeysMap == null) return;
+
+        noteEventVm.Left = noteEventVm.AbsoluteTime * WidthPerTick;
+        noteEventVm.Width = noteEventVm.DeltaTime * WidthPerTick;
 
         int targetNoteNumber = (int)noteEventVm.Note;
 

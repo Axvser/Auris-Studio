@@ -7,7 +7,6 @@ using System.Windows;
 using System.Windows.Controls;
 using VeloxDev.Core.DynamicTheme;
 using VeloxDev.Core.Extension;
-using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.Views
 {
@@ -153,7 +152,7 @@ namespace Auris_Studio.Views
                     MessageBoxImage.Error);
             }
         }
-        
+
         private void Theme_Click(object sender, RoutedEventArgs e)
         {
             ThemeManager.Jump(

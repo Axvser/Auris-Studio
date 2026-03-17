@@ -16,6 +16,25 @@ public partial class NoteEventViewModel : EventViewModel
     [VeloxProperty] public partial double Width { get; internal set; } // 宽度
     [VeloxProperty] public partial double Height { get; internal set; } // 高度
 
+    partial void OnNoteChanged(Pitch oldValue, Pitch newValue)
+    {
+        if (Parent?.Parent is MidiEditorViewModel editor)
+        {
+            editor.UpdateNoteVerticalLayout(this);
+        }
+    }
+
+    [VeloxCommand]
+    private void ChangedNote(object? parameter)
+    {
+        Note = parameter switch
+        {
+            Pitch pitch => pitch,
+            int number => (Pitch)number,
+            _ => _note
+        };
+    }
+
     [VeloxCommand]
     public override void Read(object? parameter)
     {

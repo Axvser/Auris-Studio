@@ -57,5 +57,16 @@ namespace Auris_Studio.Views
                 vm.ViewportHeight = e.NewSize.Height;
             }
         }
+
+        private void Canvas_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.ViewportLeft = HorizontalScrollBar.Offset;
+                vm.ViewportTop = VerticalScrollBar.Offset;
+                vm.ViewportWidth = HorizontalScrollBar.ActualWidth;
+                vm.ViewportHeight = HorizontalScrollBar.ActualHeight;
+            }
+        }
     }
 }

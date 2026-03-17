@@ -7,7 +7,7 @@
              mc:Ignorable="d" 
              d:DesignHeight="250" d:DesignWidth="400"
              xmlns:vm="clr-namespace:Auris_Studio.ViewModels"
-             xmlns:adorners="clr-namespace:Auris_Studio.Views.Adorners"
+             xmlns:decorators="clr-namespace:Auris_Studio.Views.Decorators"
              d:DataContext="{d:DesignInstance Type=vm:MidiEditorViewModel,IsDesignTimeCreatable=True}"
              x:Name="Root">
     <Grid>
@@ -18,9 +18,24 @@
         </Grid.RowDefinitions>
         <Grid Grid.Row="0">
             <Grid.RowDefinitions>
-                <RowDefinition Height="20"/>
+                <RowDefinition Height="30"/>
                 <RowDefinition />
             </Grid.RowDefinitions>
+
+            <!-- 头分割线绘制 -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition />
+                    <ColumnDefinition Width="15"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="1"
+                        decorators:DecoratorHelper.ShowMeasureBeatLines="True"
+                        decorators:DecoratorHelper.DataContextBridge="{Binding ElementName=Root,Path=DataContext}"
+                        decorators:DecoratorHelper.ShowHeader="True"
+                        decorators:DecoratorHelper.ShowContent="False"/>
+            </Grid>
+
             <!-- 钢琴卷帘门绘制 -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
@@ -48,9 +63,9 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <local:PianoKeyView Text="{Binding Text}"
-                                                Type="{Binding Type}"
-                                                Height="{Binding Height}"
-                                                HorizontalAlignment="Left"/>
+                                                        Type="{Binding Type}"
+                                                        Height="{Binding Height}"
+                                                        HorizontalAlignment="Left"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -63,18 +78,22 @@
                         <ColumnDefinition Width="15"/>
                     </Grid.ColumnDefinitions>
                     <Grid Grid.Column="0">
+                        <Border decorators:DecoratorHelper.ShowMeasureBeatLines="True"
+                                decorators:DecoratorHelper.DataContextBridge="{Binding ElementName=Root,Path=DataContext}"
+                                decorators:DecoratorHelper.ShowContent="True"
+                                decorators:DecoratorHelper.ShowHeader="False"
+                                Panel.ZIndex="10"/>
+
                         <!-- 轨道背景绘制 -->
                         <ScrollViewer VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Hidden"
-                              x:Name="BackDrawLineScrollViewer"
-                              Focusable="False"
-                              adorners:AdornerHelper.ShowMeasureBeatLines="True"
-                              adorners:AdornerHelper.DataContextBridge="{Binding ElementName=Root,Path=DataContext}">
+                                      HorizontalScrollBarVisibility="Hidden"
+                                      x:Name="BackDrawLineScrollViewer"
+                                      Focusable="False">
                             <ItemsControl ItemsSource="{Binding VisualTracks}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <Canvas Height="{Binding NotesCanvasHeight}"
-                                        Width="{Binding CanvasWidth}"/>
+                                                Width="{Binding CanvasWidth}"/>
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemContainerStyle>
@@ -86,18 +105,20 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <local:TrackBackgroundView Type="{Binding Type}"
-                                                           Height="{Binding Height}"
-                                                           Width="{Binding RelativeSource={RelativeSource AncestorType=local:PianoSlidingDoorView},Path=DataContext.CanvasWidth}"/>
+                                                                   Height="{Binding Height}"
+                                                                   Width="{Binding RelativeSource={RelativeSource AncestorType=local:PianoSlidingDoorView},Path=DataContext.CanvasWidth}"/>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
 
                         <!-- 音符绘制 -->
+                        <!-- 内容分割线绘制 -->
                         <ScrollViewer VerticalScrollBarVisibility="Hidden"
                                       HorizontalScrollBarVisibility="Hidden"
                                       x:Name="NotesScrollViewer"
-                                      SizeChanged="NotesScrollViewer_SizeChanged">
+                                      SizeChanged="NotesScrollViewer_SizeChanged"
+                                      Panel.ZIndex="11">
                             <ItemsControl ItemsSource="{Binding CurrentNotes}"
                                           Height="{Binding NotesCanvasHeight}"
                                           Width="{Binding CanvasWidth}"
@@ -106,7 +127,8 @@
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <Canvas Height="{Binding NotesCanvasHeight}"
-                                                Width="{Binding CanvasWidth}"/>
+                                                Width="{Binding CanvasWidth}"
+                                                SizeChanged="Canvas_SizeChanged"/>
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemContainerStyle>
@@ -141,7 +163,7 @@
                       VerticalAlignment="Stretch" 
                       HorizontalAlignment="Stretch" 
                       Background="{Binding ElementName=Root,Path=Background}"/>
-        
+
         <!-- 控制器 -->
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
@@ -165,6 +187,6 @@
             </Grid>
         </Grid>
     </Grid>
-    
-    
+
+
 </UserControl>
