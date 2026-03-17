@@ -87,7 +87,7 @@ namespace Auris_Studio.Views.Decorators
 
         public static readonly DependencyProperty HeaderTextFontSizeProperty =
             DependencyProperty.Register(nameof(HeaderTextFontSize), typeof(double), typeof(MeasureBeatDecorator),
-                new FrameworkPropertyMetadata(10.0, FrameworkPropertyMetadataOptions.AffectsRender));
+                new FrameworkPropertyMetadata(13.0, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public double HeaderTextFontSize
         {
@@ -288,8 +288,8 @@ namespace Auris_Studio.Views.Decorators
                     HeaderTextBrush,
                     VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
-                double textX = measureX + 2;
-                double textY = headerStartY + 2;
+                double textX = measureX + 4;
+                double textY = headerStartY;
 
                 if (textY + measureText.Height <= headerStartY + headerHeight)
                 {

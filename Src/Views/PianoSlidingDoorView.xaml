@@ -173,13 +173,8 @@
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="80" />
-                    <ColumnDefinition />
-                </Grid.ColumnDefinitions>
                 <local:ScrollBar x:Name="HorizontalScrollBar"
                                  Orientation="Horizontal"
-                                 Grid.Column="1"
                                  Minimum="0"
                                  Maximum="{Binding CanvasWidth}"
                                  ViewportSize="{Binding ElementName=NotesScrollViewer,Path=ViewportWidth}"

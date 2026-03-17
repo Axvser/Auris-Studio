@@ -85,7 +85,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         SharpsFlats = 0;
         MajorMinor = 0;
         Lyric = string.Empty;
-        WidthPerQuarterNote = 30;
+        WidthPerQuarterNote = 40;
         HeightPerLine = 10;
         CanvasWidth = 0;
         ControlCanvasHeight = 100;
