@@ -25,6 +25,7 @@ namespace Auris_Studio.ViewModels.ComponentModel
         private readonly SortedDictionary<long, List<T>> _endTimeBuckets = [];
         private readonly Dictionary<T, ItemLocation> _reverseIndex = [];
         private readonly List<long> _endTimeList = [];
+        private readonly SortedSet<long> _visibleStartTicks = [];
 
         private long _virtualStart = 0;
         private long _virtualEnd = long.MaxValue;
@@ -65,11 +66,13 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 if (insertIndex >= 0 && insertIndex <= _visibleItems.Count)
                 {
                     _visibleItems.Insert(insertIndex, item);
+                    _visibleStartTicks.Add(startTick);
                     OnCollectionChanged(NotifyCollectionChangedAction.Add, item, insertIndex);
                 }
                 else
                 {
                     _visibleItems.Add(item);
+                    _visibleStartTicks.Add(startTick);
                     OnCollectionChanged(NotifyCollectionChangedAction.Add, item, _visibleItems.Count - 1);
                 }
             }
@@ -123,6 +126,7 @@ namespace Auris_Studio.ViewModels.ComponentModel
                     {
                         _visibleItems.Add(item);
                     }
+                    _visibleStartTicks.Add(item.AbsoluteTime);
                 }
 
                 OnCollectionChanged(NotifyCollectionChangedAction.Reset);
@@ -145,6 +149,10 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 if (oldIndex >= 0)
                 {
                     _visibleItems.RemoveAt(oldIndex);
+                    if (!_timeBuckets.TryGetValue(location.StartTick, out var bucket) || bucket.All(i => _reverseIndex.TryGetValue(i, out var loc) && loc.IsVirtualized))
+                    {
+                        _visibleStartTicks.Remove(location.StartTick);
+                    }
                     OnCollectionChanged(NotifyCollectionChangedAction.Remove, item, oldIndex);
                 }
             }
@@ -168,6 +176,7 @@ namespace Auris_Studio.ViewModels.ComponentModel
             _isVirtualized = false;
             _virtualStart = 0;
             _virtualEnd = long.MaxValue;
+            _visibleStartTicks.Clear();
 
             _visibleItems.Clear();
 
@@ -258,11 +267,42 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 {
                     _visibleItems.Add(item);
                 }
+                _visibleStartTicks.Add(item.AbsoluteTime);
 
                 added?.Invoke(item);
             }
 
             OnCollectionChanged(NotifyCollectionChangedAction.Reset);
+        }
+
+        public T? FindFirstAtOrAfter(long tick)
+        {
+            var firstStart = _timeBuckets.Keys.FirstOrDefault(k => k >= tick);
+            if (firstStart == default)
+            {
+                return null;
+            }
+
+            if (_timeBuckets.TryGetValue(firstStart, out var bucket) && bucket.Count > 0)
+            {
+                return bucket[0];
+            }
+            return null;
+        }
+
+        public T? FindFirstAtOrBefore(long tick)
+        {
+            var lastStart = _timeBuckets.Keys.LastOrDefault(k => k <= tick);
+            if (lastStart == default)
+            {
+                return null;
+            }
+
+            if (_timeBuckets.TryGetValue(lastStart, out var bucket) && bucket.Count > 0)
+            {
+                return bucket[0];
+            }
+            return null;
         }
 
         public IEnumerable<T> QueryAtStart(long tick)
@@ -437,6 +477,10 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 if (!wasVirtualized && oldVisibleIndex >= 0)
                 {
                     _visibleItems.RemoveAt(oldVisibleIndex);
+                    if (!_timeBuckets.TryGetValue(oldLoc.StartTick, out var bucket) || bucket.All(i => _reverseIndex.TryGetValue(i, out var loc) && loc.IsVirtualized))
+                    {
+                        _visibleStartTicks.Remove(oldLoc.StartTick);
+                    }
                     OnCollectionChanged(NotifyCollectionChangedAction.Remove, item, oldVisibleIndex);
                 }
 
@@ -448,11 +492,13 @@ namespace Auris_Studio.ViewModels.ComponentModel
                     if (newIndex >= 0 && newIndex <= _visibleItems.Count)
                     {
                         _visibleItems.Insert(newIndex, item);
+                        _visibleStartTicks.Add(newStart);
                         OnCollectionChanged(NotifyCollectionChangedAction.Add, item, newIndex);
                     }
                     else
                     {
                         _visibleItems.Add(item);
+                        _visibleStartTicks.Add(newStart);
                         OnCollectionChanged(NotifyCollectionChangedAction.Add, item, _visibleItems.Count - 1);
                     }
                 }
@@ -471,11 +517,13 @@ namespace Auris_Studio.ViewModels.ComponentModel
                     if (newIndex >= 0 && newIndex <= _visibleItems.Count)
                     {
                         _visibleItems.Insert(newIndex, item);
+                        _visibleStartTicks.Add(newStart);
                         OnCollectionChanged(NotifyCollectionChangedAction.Add, item, newIndex);
                     }
                     else
                     {
                         _visibleItems.Add(item);
+                        _visibleStartTicks.Add(newStart);
                         OnCollectionChanged(NotifyCollectionChangedAction.Add, item, _visibleItems.Count - 1);
                     }
                 }
@@ -484,6 +532,10 @@ namespace Auris_Studio.ViewModels.ComponentModel
                     if (oldVisibleIndex >= 0)
                     {
                         _visibleItems.RemoveAt(oldVisibleIndex);
+                        if (!_timeBuckets.TryGetValue(oldLoc.StartTick, out var bucket) || bucket.All(i => _reverseIndex.TryGetValue(i, out var loc) && loc.IsVirtualized))
+                        {
+                            _visibleStartTicks.Remove(oldLoc.StartTick);
+                        }
                         OnCollectionChanged(NotifyCollectionChangedAction.Remove, item, oldVisibleIndex);
                     }
                 }
@@ -551,6 +603,11 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 foreach (var (item, index) in itemsWithIndices)
                 {
                     _visibleItems.RemoveAt(index);
+                    var startTick = _reverseIndex[item].StartTick;
+                    if (!_timeBuckets.TryGetValue(startTick, out var bucket) || bucket.All(i => _reverseIndex.TryGetValue(i, out var loc) && loc.IsVirtualized))
+                    {
+                        _visibleStartTicks.Remove(startTick);
+                    }
                 }
             }
 
@@ -561,6 +618,9 @@ namespace Auris_Studio.ViewModels.ComponentModel
                 int insertIndex = 0;
                 foreach (var item in itemsToRestore)
                 {
+                    var startTick = _reverseIndex[item].StartTick;
+                    _visibleStartTicks.Add(startTick);
+
                     insertIndex = FindInsertIndex(item.AbsoluteTime, insertIndex);
                     if (insertIndex >= 0 && insertIndex <= _visibleItems.Count)
                     {

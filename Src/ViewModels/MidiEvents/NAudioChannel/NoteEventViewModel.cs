@@ -1,5 +1,7 @@
 ﻿using Auris_Studio.Midi;
 using NAudio.Midi;
+using System.Data.Common;
+using System.Reflection.Metadata;
 using VeloxDev.Core.MVVM;
 
 namespace Auris_Studio.ViewModels.MidiEvents;
@@ -25,6 +27,24 @@ public partial class NoteEventViewModel : EventViewModel
     }
 
     [VeloxCommand]
+    private void StartNote(object? parameter)
+    {
+        if (parameter is MidiOut midiOut && Parent is not null)
+        {
+            midiOut.Send(MidiMessage.StartNote((int)Note, OnVelocity, Parent.Channel).RawData);
+        }
+    }
+
+    [VeloxCommand]
+    private void StopNote(object? parameter)
+    {
+        if (parameter is MidiOut midiOut && Parent is not null)
+        {
+            midiOut.Send(MidiMessage.StopNote((int)Note, OnVelocity, Parent.Channel).RawData);
+        }
+    }
+
+    [VeloxCommand]
     private void SetOperationMode(object? parameter)
     {
         if (Parent?.Parent is MidiEditorViewModel editor &&
@@ -37,7 +57,7 @@ public partial class NoteEventViewModel : EventViewModel
     [VeloxCommand]
     private void Capture()
     {
-        if(Parent?.Parent is MidiEditorViewModel editor)
+        if (Parent?.Parent is MidiEditorViewModel editor)
         {
             editor.CapturedNote = this;
         }
@@ -49,6 +69,16 @@ public partial class NoteEventViewModel : EventViewModel
         if (Parent?.Parent is MidiEditorViewModel editor)
         {
             editor.CapturedNote = null;
+        }
+    }
+
+    [VeloxCommand]
+    private void Delete()
+    {
+        if (Parent?.Parent is MidiEditorViewModel editor)
+        {
+            editor.CurrentNotes.Remove(this);
+            Parent.Notes.Remove(this);
         }
     }
 

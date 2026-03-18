@@ -6,6 +6,7 @@ using NAudio.Midi;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using VeloxDev.Core.MVVM;
 
 namespace Auris_Studio.ViewModels;
@@ -184,9 +185,51 @@ public partial class MidiEditorViewModel : IMidiFormatable
         UpdateViewportTimeRange();
     }
 
+    partial void OnPointerLeftChanged(double oldValue, double newValue)
+    {
+        if (CapturedNote == null || PointerOperation == 0) return;
+
+        long pointerTick = (long)(newValue / WidthPerTick);
+        long minNoteLength = GetMinNoteLength(); // 使用统一的最小长度
+
+        switch (PointerOperation)
+        {
+            case 1: // 调整起始时间
+                HandleAbsoluteTimeAdjustment(pointerTick, minNoteLength);
+                break;
+
+            case 2: // 调整持续时间
+                HandleDeltaTimeAdjustment(pointerTick, minNoteLength);
+                break;
+
+            case 3: // 整体移动
+                HandleNoteMove(pointerTick);
+                break;
+        }
+
+        if (CapturedNote != null)
+        {
+            UpdateNote(CapturedNote);
+        }
+    }
+
+    partial void OnPointerTopChanged(double oldValue, double newValue)
+    {
+        PointerNote = FindPitchByTop(NotesCanvasHeight - newValue);
+    }
+
+    partial void OnPointerNoteChanged(int oldValue, int newValue)
+    {
+        if (CapturedNote is not null &&
+            PointerOperation == 3)
+        {
+            CapturedNote.Note = (Pitch)newValue;
+        }
+    }
+
     #endregion
 
-    #region 画布交互
+    #region 画布计算
 
     [VeloxCommand]
     private void HitTest()
@@ -267,48 +310,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         PointerOperation = 3;
 
         UpdateNote(noteVm);
-    }
-
-    partial void OnPointerLeftChanged(double oldValue, double newValue)
-    {
-        if (CapturedNote == null || PointerOperation == 0) return;
-
-        long pointerTick = (long)(newValue / WidthPerTick);
-        long minNoteLength = GetMinNoteLength(); // 使用统一的最小长度
-
-        switch (PointerOperation)
-        {
-            case 1: // 调整起始时间
-                HandleAbsoluteTimeAdjustment(pointerTick, minNoteLength);
-                break;
-
-            case 2: // 调整持续时间
-                HandleDeltaTimeAdjustment(pointerTick, minNoteLength);
-                break;
-
-            case 3: // 整体移动
-                HandleNoteMove(pointerTick);
-                break;
-        }
-
-        if (CapturedNote != null)
-        {
-            UpdateNote(CapturedNote);
-        }
-    }
-
-    partial void OnPointerTopChanged(double oldValue, double newValue)
-    {
-        PointerNote = FindPitchByTop(NotesCanvasHeight - newValue);
-    }
-
-    partial void OnPointerNoteChanged(int oldValue, int newValue)
-    {
-        if (CapturedNote is not null &&
-            PointerOperation == 3)
-        {
-            CapturedNote.Note = (Pitch)newValue;
-        }
     }
 
     public long GetAlignmentStep()
@@ -945,6 +946,97 @@ public partial class MidiEditorViewModel : IMidiFormatable
     private void OnTimeSignatureEventsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrentTimeSignature(NowTime);
 
     private void OnKeySignatureEventsChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateCurrentKeySignature(NowTime);
+
+    #endregion
+
+    #region 播放
+
+    [VeloxCommand]
+    private async Task Play(object? parameter, CancellationToken ct)
+    {
+        if (NowTime >= MaxTime) NowTime = 0;
+
+        // 创建用于取消独立线程的CancellationTokenSource
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        // 使用ManualResetEventSlim同步线程状态
+        using var playbackCompleted = new ManualResetEventSlim(false);
+        var playbackException = (Exception?)null;
+
+        // 在线程中运行播放逻辑
+        await Task.Run(async () =>
+        {
+            using var midiOut = new MidiOut(0);
+            var playbackStopwatch = Stopwatch.StartNew();
+            long playbackStartTick = NowTime;
+
+            try
+            {
+                while (!cts.IsCancellationRequested && NowTime < MaxTime)
+                {
+                    long currentLogicalTick = NowTime;
+
+                    foreach (var track in Tracks)
+                    {
+                        if (track.Muted) continue;
+                        track.ExecuteMidiCommand.Execute(Tuple.Create(currentLogicalTick, midiOut));
+                    }
+
+                    long nextLogicalTick = currentLogicalTick + 1;
+                    double targetPhysicalTimeMs = (nextLogicalTick - playbackStartTick) * TickTime;
+                    double elapsedPhysicalTimeMs = playbackStopwatch.Elapsed.TotalMilliseconds;
+                    double waitTimeMs = targetPhysicalTimeMs - elapsedPhysicalTimeMs;
+
+                    if (waitTimeMs > 0)
+                    {
+                        await MicrosecondDelay.Delay(waitTimeMs * 1000.0, cts.Token);
+                    }
+
+                    NowTime = nextLogicalTick;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // 正常取消
+            }
+            catch (Exception ex)
+            {
+                playbackException = ex;
+            }
+            finally
+            {
+                foreach (var track in Tracks)
+                {
+                    midiOut.Send(new ControlChangeEvent(0, track.Channel, MidiController.AllNotesOff, 0).GetAsShortMessage());
+                }
+                playbackStopwatch.Stop();
+                playbackCompleted.Set();
+            }
+        }, cts.Token);
+
+        try
+        {
+            // 等待播放完成或取消
+            await Task.Run(() => playbackCompleted.Wait(cts.Token), cts.Token);
+
+            // 如果有异常则重新抛出
+            if (playbackException != null)
+            {
+                throw new Exception("Playback thread failed", playbackException);
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // 外部取消请求
+            cts.Cancel();
+            throw;
+        }
+    }
+
+    [VeloxCommand]
+    private void Stop()
+    {
+        PlayCommand.Clear();
+    }
 
     #endregion
 

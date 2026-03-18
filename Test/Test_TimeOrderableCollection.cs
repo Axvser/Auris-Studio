@@ -604,5 +604,164 @@ namespace Test
             Assert.IsTrue(propertyChangedFired, "移除导致 MaxTime 变化的元素后，PropertyChanged 事件应被触发。");
             Assert.AreEqual(nameof(TimeOrderableCollection<>.MaxTime), changedPropertyName);
         }
+
+        [TestMethod]
+        public void FindFirstAtOrAfter_ShouldReturnFirstElementAtOrAfterTargetTick_RegardlessOfVirtualization()
+        {
+            // Arrange: 创建包含虚拟化和非虚拟化元素的集合
+            var collection = new TimeOrderableCollection<NoteEventViewModel>();
+
+            // 虚拟化元素
+            var virtualizedItemAt100 = new NoteEventViewModel { AbsoluteTime = 100, DeltaTime = 50 };
+            // 可见元素
+            var expectedItemAt150 = new NoteEventViewModel { AbsoluteTime = 150, DeltaTime = 50 };
+            var itemAt200 = new NoteEventViewModel { AbsoluteTime = 200, DeltaTime = 50 };
+            // 虚拟化元素
+            var virtualizedItemAt250 = new NoteEventViewModel { AbsoluteTime = 250, DeltaTime = 50 };
+            // 可见元素
+            var itemAt300 = new NoteEventViewModel { AbsoluteTime = 300, DeltaTime = 50 };
+
+            collection.Add(virtualizedItemAt100);
+            collection.Add(expectedItemAt150);
+            collection.Add(itemAt200);
+            collection.Add(virtualizedItemAt250);
+            collection.Add(itemAt300);
+
+            // 设置虚拟化范围：120-280，使100和250的元素虚拟化
+            collection.Virtualize(120, 280);
+
+            // 测试场景1: tick在虚拟化元素之后，第一个可见元素之前
+            var result1 = collection.FindFirstAtOrAfter(120);
+            Assert.IsNotNull(result1);
+            Assert.AreEqual(expectedItemAt150, result1, "应返回开始时间>=120的第一个元素，无论是否虚拟化");
+
+            // 测试场景2: tick等于虚拟化元素的开始时间
+            var result2 = collection.FindFirstAtOrAfter(100);
+            Assert.IsNotNull(result2);
+            Assert.AreEqual(virtualizedItemAt100, result2, "应返回虚拟化元素本身，因为方法不考虑虚拟化状态");
+
+            // 测试场景3: tick在两个虚拟化元素之间
+            var result3 = collection.FindFirstAtOrAfter(220);
+            Assert.IsNotNull(result3);
+            Assert.AreEqual(virtualizedItemAt250, result3, "应返回开始时间>=220的第一个元素，即使它是虚拟化的");
+
+            // 测试场景4: tick在虚拟化范围之外
+            var result4 = collection.FindFirstAtOrAfter(280);
+            Assert.IsNotNull(result4);
+            Assert.AreEqual(itemAt300, result4, "应返回开始时间>=280的第一个元素，不考虑虚拟化");
+
+            // 测试场景5: tick在第一个虚拟化元素之前
+            var result5 = collection.FindFirstAtOrAfter(50);
+            Assert.IsNotNull(result5);
+            Assert.AreEqual(virtualizedItemAt100, result5, "应返回开始时间>=50的第一个元素，无论是否虚拟化");
+        }
+
+        [TestMethod]
+        public void FindFirstAtOrBefore_ShouldReturnFirstElementAtOrBeforeTargetTick_RegardlessOfVirtualization()
+        {
+            // Arrange
+            var collection = new TimeOrderableCollection<NoteEventViewModel>();
+
+            // 虚拟化元素
+            var virtualizedItemAt100 = new NoteEventViewModel { AbsoluteTime = 100, DeltaTime = 50 };
+            // 可见元素
+            var expectedItemAt150 = new NoteEventViewModel { AbsoluteTime = 150, DeltaTime = 50 };
+            var itemAt200 = new NoteEventViewModel { AbsoluteTime = 200, DeltaTime = 50 };
+            // 虚拟化元素
+            var virtualizedItemAt250 = new NoteEventViewModel { AbsoluteTime = 250, DeltaTime = 50 };
+            // 可见元素
+            var itemAt300 = new NoteEventViewModel { AbsoluteTime = 300, DeltaTime = 50 };
+
+            collection.Add(virtualizedItemAt100);
+            collection.Add(expectedItemAt150);
+            collection.Add(itemAt200);
+            collection.Add(virtualizedItemAt250);
+            collection.Add(itemAt300);
+
+            collection.Virtualize(120, 280);
+
+            // 测试场景1: tick在虚拟化元素和可见元素之间
+            var result1 = collection.FindFirstAtOrBefore(140);
+            Assert.IsNotNull(result1);
+            Assert.AreEqual(virtualizedItemAt100, result1, "应返回开始时间<=140的第一个元素，包括虚拟化元素");
+
+            // 测试场景2: tick等于虚拟化元素的开始时间
+            var result2 = collection.FindFirstAtOrBefore(100);
+            Assert.IsNotNull(result2);
+            Assert.AreEqual(virtualizedItemAt100, result2, "应返回虚拟化元素本身，因为方法不考虑虚拟化状态");
+
+            // 测试场景3: tick在两个可见元素之间
+            var result3 = collection.FindFirstAtOrBefore(180);
+            Assert.IsNotNull(result3);
+            Assert.AreEqual(expectedItemAt150, result3, "应返回开始时间<=180的第一个元素，无论是否虚拟化");
+
+            // 测试场景4: tick在虚拟化范围之外
+            var result4 = collection.FindFirstAtOrBefore(320);
+            Assert.IsNotNull(result4);
+            Assert.AreEqual(itemAt300, result4, "应返回开始时间<=320的第一个元素，不考虑虚拟化");
+
+            // 测试场景5: tick小于第一个元素
+            var result5 = collection.FindFirstAtOrBefore(50);
+            Assert.IsNull(result5, "当tick小于所有元素的开始时间时，应返回null");
+        }
+
+        [TestMethod]
+        public void FindFirstAtOrAfter_WithAllVirtualizedItems_ShouldReturnVirtualizedElements()
+        {
+            // Arrange: 所有元素都虚拟化
+            var collection = new TimeOrderableCollection<NoteEventViewModel>();
+
+            var virtualizedItemAt100 = new NoteEventViewModel { AbsoluteTime = 100, DeltaTime = 50 };
+            var virtualizedItemAt200 = new NoteEventViewModel { AbsoluteTime = 200, DeltaTime = 50 };
+            var virtualizedItemAt300 = new NoteEventViewModel { AbsoluteTime = 300, DeltaTime = 50 };
+
+            collection.Add(virtualizedItemAt100);
+            collection.Add(virtualizedItemAt200);
+            collection.Add(virtualizedItemAt300);
+
+            // 虚拟化范围不包含任何元素
+            collection.Virtualize(400, 500);
+
+            // Act & Assert: Find方法应该返回虚拟化元素
+            var result1 = collection.FindFirstAtOrAfter(0);
+            Assert.IsNotNull(result1);
+            Assert.AreEqual(virtualizedItemAt100, result1, "即使所有元素都虚拟化，FindFirstAtOrAfter也应返回元素");
+
+            var result2 = collection.FindFirstAtOrAfter(150);
+            Assert.IsNotNull(result2);
+            Assert.AreEqual(virtualizedItemAt200, result2, "应返回虚拟化元素，不考虑虚拟化状态");
+
+            var result3 = collection.FindFirstAtOrAfter(400);
+            Assert.IsNull(result3, "当tick超过所有元素的开始时间时，应返回null");
+        }
+
+        [TestMethod]
+        public void FindFirstAtOrBefore_WithAllVirtualizedItems_ShouldReturnVirtualizedElements()
+        {
+            // Arrange
+            var collection = new TimeOrderableCollection<NoteEventViewModel>();
+
+            var virtualizedItemAt100 = new NoteEventViewModel { AbsoluteTime = 100, DeltaTime = 50 };
+            var virtualizedItemAt200 = new NoteEventViewModel { AbsoluteTime = 200, DeltaTime = 50 };
+            var virtualizedItemAt300 = new NoteEventViewModel { AbsoluteTime = 300, DeltaTime = 50 };
+
+            collection.Add(virtualizedItemAt100);
+            collection.Add(virtualizedItemAt200);
+            collection.Add(virtualizedItemAt300);
+
+            collection.Virtualize(400, 500);
+
+            // Act & Assert
+            var result1 = collection.FindFirstAtOrBefore(1000);
+            Assert.IsNotNull(result1);
+            Assert.AreEqual(virtualizedItemAt300, result1, "即使所有元素都虚拟化，FindFirstAtOrBefore也应返回元素");
+
+            var result2 = collection.FindFirstAtOrBefore(250);
+            Assert.IsNotNull(result2);
+            Assert.AreEqual(virtualizedItemAt200, result2, "应返回虚拟化元素，不考虑虚拟化状态");
+
+            var result3 = collection.FindFirstAtOrBefore(50);
+            Assert.IsNull(result3, "当tick小于所有元素的开始时间时，应返回null");
+        }
     }
 }

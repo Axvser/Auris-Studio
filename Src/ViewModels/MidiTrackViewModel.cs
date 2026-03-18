@@ -1,6 +1,7 @@
 ﻿using Auris_Studio.Midi;
 using Auris_Studio.ViewModels.ComponentModel;
 using Auris_Studio.ViewModels.MidiEvents;
+using NAudio.Midi;
 using System.Collections.Specialized;
 using VeloxDev.Core.MVVM;
 
@@ -55,6 +56,32 @@ public partial class MidiTrackViewModel
         _sustains.CollectionChanged += OnControlChangeEventsChanged;
         _expressions.CollectionChanged += OnControlChangeEventsChanged;
         _modulations.CollectionChanged += OnControlChangeEventsChanged;
+    }
+
+    [VeloxCommand]
+    private void ExecuteMidi(object? parameter)
+    {
+        if (parameter is not Tuple<long, MidiOut> tuple) return;
+        var ends = Notes.QueryAtEnd(tuple.Item1);
+        var starts = Notes.QueryAtStart(tuple.Item1);
+        var volume = Volumes.FindFirstAtOrBefore(tuple.Item1);
+        var pan = Pans.FindFirstAtOrBefore(tuple.Item1);
+        var sustains = Sustains.FindFirstAtOrBefore(tuple.Item1);
+        var expression = Expressions.FindFirstAtOrBefore(tuple.Item1);
+        var modulation = Modulations.FindFirstAtOrBefore(tuple.Item1);
+        foreach (var endNote in ends)
+        {
+            endNote.StopNoteCommand.Execute(tuple.Item2);
+        }
+        if (volume is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)volume.MidiController, volume.Value, Channel).RawData);
+        if (pan is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)pan.MidiController, pan.Value, Channel).RawData);
+        if (sustains is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)sustains.MidiController, sustains.Value, Channel).RawData);
+        if (expression is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)expression.MidiController, expression.Value, Channel).RawData);
+        if (modulation is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)modulation.MidiController, modulation.Value, Channel).RawData);
+        foreach (var startsNote in starts)
+        {
+            startsNote.StartNoteCommand.Execute(tuple.Item2);
+        }
     }
 
     #region 音轨功能开关

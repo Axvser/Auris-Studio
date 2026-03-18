@@ -12,7 +12,7 @@
              x:Name="Root">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="1*"/>
+            <RowDefinition Height="40"/>
             <RowDefinition Height="8*"/>
             <RowDefinition Height="1*"/>
         </Grid.RowDefinitions>
@@ -23,6 +23,8 @@
                 <Button Content="File" Click="SelectMidi_Click"/>
                 <Button Content="Diagnose" Click="Diagnose_Click"/>
                 <Button Content="Theme" Click="Theme_Click" />
+                <Button Content="开始" Command="{Binding PlayCommand}"/>
+                <Button Content="停止" Command="{Binding StopCommand}"/>
             </StackPanel>
         </Grid>
 
