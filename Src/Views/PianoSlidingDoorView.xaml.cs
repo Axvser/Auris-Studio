@@ -16,6 +16,7 @@ namespace Auris_Studio.Views
             NotesScrollViewer.ScrollToVerticalOffset(e);
             PianoKeysScrollViewer.ScrollToVerticalOffset(e);
             BackDrawLineScrollViewer.ScrollToVerticalOffset(e);
+            TickScrollViewer.ScrollToVerticalOffset(e);
             if (DataContext is MidiEditorViewModel vm)
             {
                 vm.ViewportTop = e;
@@ -27,6 +28,7 @@ namespace Auris_Studio.Views
             NotesScrollViewer.ScrollToHorizontalOffset(e);
             PianoKeysScrollViewer.ScrollToHorizontalOffset(e);
             BackDrawLineScrollViewer.ScrollToHorizontalOffset(e);
+            TickScrollViewer.ScrollToHorizontalOffset(e);
             if (DataContext is MidiEditorViewModel vm)
             {
                 vm.ViewportLeft = e;
@@ -78,6 +80,15 @@ namespace Auris_Studio.Views
             if (DataContext is MidiEditorViewModel vm)
             {
                 vm.CapturedNote = null;
+            }
+        }
+
+        private void TickChanged(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var point = e.GetPosition(sender as Canvas);
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.MoveTickCommand.Execute(point.X);
             }
         }
     }

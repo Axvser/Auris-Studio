@@ -104,6 +104,17 @@ namespace Auris_Studio.Views.Decorators
             get { return (Brush)GetValue(HeaderTextBrushProperty); }
             set { SetValue(HeaderTextBrushProperty, value); }
         }
+
+        public static readonly DependencyProperty TickLineBrushProperty =
+            DependencyProperty.Register(nameof(TickLineBrush), typeof(Brush), typeof(MeasureBeatDecorator),
+                new FrameworkPropertyMetadata(Brushes.Red, FrameworkPropertyMetadataOptions.AffectsRender));
+
+        public Brush TickLineBrush
+        {
+            get { return (Brush)GetValue(TickLineBrushProperty); }
+            set { SetValue(TickLineBrushProperty, value); }
+        }
+
         #endregion
 
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
@@ -136,7 +147,8 @@ namespace Auris_Studio.Views.Decorators
                 e.PropertyName == nameof(MidiEditorViewModel.WidthPerTick) ||
                 e.PropertyName == nameof(MidiEditorViewModel.Numerator) ||
                 e.PropertyName == nameof(MidiEditorViewModel.Denominator) ||
-                e.PropertyName == nameof(MidiEditorViewModel.PPQN))
+                e.PropertyName == nameof(MidiEditorViewModel.PPQN) ||
+                e.PropertyName == nameof(MidiEditorViewModel.NowTime))
             {
                 InvalidateVisual();
             }
@@ -192,7 +204,8 @@ namespace Auris_Studio.Views.Decorators
             Pen? headerMeasurePen = ShowHeader ? new Pen(MeasureLineBrush, 1.0) : null;
             Pen? headerBeatPen = ShowHeader ? new Pen(BeatLineBrush, 1.0) : null;
             Pen? bodyMeasurePen = ShowContent ? new Pen(MeasureLineBrush, 1.0) : null;
-            Pen? bodyBeatPen = ShowContent ? new Pen(BeatLineBrush, 0.3) : null; // 拍线宽度改为0.3
+            Pen? bodyBeatPen = ShowContent ? new Pen(BeatLineBrush, 0.3) : null;
+            Pen? tickLinePen = ShowContent ? new Pen(TickLineBrush, 0.3) : null;
 
             // 绘制头部背景
             if (ShowHeader && HeaderBackground != null && !HeaderBackground.Equals(Brushes.Transparent))
@@ -271,6 +284,15 @@ namespace Auris_Studio.Views.Decorators
                             }
                         }
                     }
+                }
+
+                if(tickLinePen != null)
+                {
+                    var tickX = vm.NowTime * vm.WidthPerTick - vm.ViewportLeft;
+
+                    dc.DrawLine(tickLinePen,
+                               new Point(tickX, 0),
+                               new Point(tickX, vm.ViewportHeight));
                 }
             }
         }

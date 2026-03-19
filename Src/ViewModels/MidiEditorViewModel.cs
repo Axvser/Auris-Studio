@@ -7,7 +7,9 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Windows;
 using VeloxDev.Core.MVVM;
+using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.ViewModels;
 
@@ -991,7 +993,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         await MicrosecondDelay.Delay(waitTimeMs * 1000.0, cts.Token);
                     }
 
-                    NowTime = nextLogicalTick;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        NowTime = nextLogicalTick;
+                    });
                 }
             }
             catch (OperationCanceledException)
@@ -1036,6 +1041,18 @@ public partial class MidiEditorViewModel : IMidiFormatable
     private void Stop()
     {
         PlayCommand.Clear();
+    }
+
+    [VeloxCommand]
+    private async Task MoveTick(object? parameter)
+    {
+        await PlayCommand.LockAsync();
+        await PlayCommand.ClearAsync();
+        if (parameter is double value)
+        {
+            NowTime = (long)(value / WidthPerTick);
+        }
+        await PlayCommand.UnLockAsync();
     }
 
     #endregion

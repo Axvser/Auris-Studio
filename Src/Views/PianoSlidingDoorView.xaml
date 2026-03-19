@@ -22,18 +22,29 @@
                 <RowDefinition />
             </Grid.RowDefinitions>
 
-            <!-- 头分割线绘制 -->
+            
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="80"/>
                     <ColumnDefinition />
                     <ColumnDefinition Width="15"/>
                 </Grid.ColumnDefinitions>
+                <!-- 头分割线绘制 -->
                 <Border Grid.Column="1"
                         decorators:DecoratorHelper.ShowMeasureBeatLines="True"
                         decorators:DecoratorHelper.DataContextBridge="{Binding ElementName=Root,Path=DataContext}"
                         decorators:DecoratorHelper.ShowHeader="True"
                         decorators:DecoratorHelper.ShowContent="False"/>
+                <!-- 头进度选择 -->
+                <ScrollViewer x:Name="TickScrollViewer"
+                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Hidden"
+                              Grid.Column="1">
+                    <Canvas Height="30"
+                            Width="{Binding CanvasWidth}"
+                            MouseDown="TickChanged"
+                            Background="#01FFFFFF"/>
+                </ScrollViewer>
             </Grid>
 
             <!-- 钢琴卷帘门绘制 -->
