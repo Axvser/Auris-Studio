@@ -91,5 +91,10 @@ namespace Auris_Studio.Views
                 vm.MoveTickCommand.Execute(point.X);
             }
         }
+
+        private void ScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            e.Handled = true;
+        }
     }
 }

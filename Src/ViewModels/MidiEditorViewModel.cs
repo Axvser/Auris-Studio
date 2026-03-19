@@ -9,7 +9,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using VeloxDev.Core.MVVM;
-using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.ViewModels;
 
@@ -180,11 +179,13 @@ public partial class MidiEditorViewModel : IMidiFormatable
     partial void OnViewportLeftChanged(double oldValue, double newValue)
     {
         UpdateViewportTimeRange();
+        ExtendMaxTime();
     }
 
     partial void OnViewportWidthChanged(double oldValue, double newValue)
     {
         UpdateViewportTimeRange();
+        ExtendMaxTime();
     }
 
     partial void OnPointerLeftChanged(double oldValue, double newValue)
@@ -427,23 +428,28 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         if (CapturedNote == null) return;
 
-        // 计算音符的中心点（以Tick为单位）
-        long noteCenter = CapturedNote.AbsoluteTime + CapturedNote.DeltaTime / 2;
+        // 计算鼠标指针相对于音符原中心点的偏移
+        long originalCenter = CapturedNote.AbsoluteTime + CapturedNote.DeltaTime / 2;
+        long centerOffset = pointerTick - originalCenter;
 
-        // 计算指针位置相对于音符中心的偏移
-        long centerOffset = pointerTick - noteCenter;
-
-        // 将偏移应用到音符中心，并找到最近的对齐点
-        long targetCenter = AlignTimeForward(noteCenter + centerOffset);
-
-        // 从中心点计算新的起始时间
-        long newAbsoluteTime = targetCenter - CapturedNote.DeltaTime / 2;
+        // 优先对齐起始时间
+        long targetAbsoluteTime = AlignTimeForward(CapturedNote.AbsoluteTime + centerOffset);
 
         // 确保新起始时间不为负数
-        if (newAbsoluteTime >= 0)
+        if (targetAbsoluteTime < 0)
         {
-            CapturedNote.AbsoluteTime = newAbsoluteTime;
+            targetAbsoluteTime = 0;
         }
+
+        // 根据对齐后的起始时间，计算结束时间
+        long targetEndTime = targetAbsoluteTime + CapturedNote.DeltaTime;
+
+        // 重新计算最终的时长
+        long newDeltaTime = targetEndTime - targetAbsoluteTime;
+
+        // 应用更新
+        CapturedNote.AbsoluteTime = targetAbsoluteTime;
+        CapturedNote.DeltaTime = (int)newDeltaTime;
     }
 
     private void HandleAbsoluteTimeAdjustment(long pointerTick, long minNoteLength)
@@ -535,6 +541,21 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
 
         return nearestKey?.Note ?? 60;
+    }
+
+    private void ExtendMaxTime()
+    {
+        if (MaxTime >= ViewportEndTime)
+        {
+            if (MaxTime - ViewportEndTime < PPQN)
+            {
+                MaxTime += PPQN * 16;
+            }
+        }
+        else
+        {
+            MaxTime += (ViewportEndTime - MaxTime) + PPQN * 16;
+        }
     }
 
     #endregion

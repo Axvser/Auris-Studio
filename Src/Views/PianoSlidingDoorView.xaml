@@ -7,9 +7,20 @@
              mc:Ignorable="d" 
              d:DesignHeight="250" d:DesignWidth="400"
              xmlns:vm="clr-namespace:Auris_Studio.ViewModels"
+             xmlns:midivm="clr-namespace:Auris_Studio.ViewModels.MidiEvents"
+             xmlns:performance="clr-namespace:Auris_Studio.Views.Performance"
              xmlns:decorators="clr-namespace:Auris_Studio.Views.Decorators"
              d:DataContext="{d:DesignInstance Type=vm:MidiEditorViewModel,IsDesignTimeCreatable=True}"
              x:Name="Root">
+    <UserControl.Resources>
+        <DataTemplate x:Key="NoteTemplate" DataType="midivm:NoteEventViewModel">
+            <local:NoteView Width="{Binding Width}" 
+                            Height="{Binding Height}"
+                            Canvas.Left="{Binding Left}"
+                            Canvas.Bottom="{Binding Bottom}"/>
+        </DataTemplate>
+    </UserControl.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="1*"/>
@@ -22,7 +33,7 @@
                 <RowDefinition />
             </Grid.RowDefinitions>
 
-            
+
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="80"/>
@@ -39,7 +50,8 @@
                 <ScrollViewer x:Name="TickScrollViewer"
                               HorizontalScrollBarVisibility="Hidden"
                               VerticalScrollBarVisibility="Hidden"
-                              Grid.Column="1">
+                              Grid.Column="1"
+                              HorizontalAlignment="Left">
                     <Canvas Height="30"
                             Width="{Binding CanvasWidth}"
                             MouseDown="TickChanged"
@@ -58,7 +70,8 @@
                 <Grid Grid.Column="0">
                     <ScrollViewer VerticalScrollBarVisibility="Hidden"
                                   HorizontalScrollBarVisibility="Hidden"
-                                  x:Name="PianoKeysScrollViewer">
+                                  x:Name="PianoKeysScrollViewer"
+                                  PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
                         <ItemsControl ItemsSource="{Binding PianoKeys}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -98,7 +111,8 @@
                         <!-- 轨道背景绘制 -->
                         <ScrollViewer VerticalScrollBarVisibility="Hidden"
                                       HorizontalScrollBarVisibility="Hidden"
-                                      x:Name="BackDrawLineScrollViewer">
+                                      x:Name="BackDrawLineScrollViewer"
+                                      HorizontalAlignment="Left">
                             <ItemsControl ItemsSource="{Binding VisualTracks}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -128,36 +142,17 @@
                                       HorizontalScrollBarVisibility="Hidden"
                                       x:Name="NotesScrollViewer"
                                       SizeChanged="NotesScrollViewer_SizeChanged"
-                                      Panel.ZIndex="11">
-                            <ItemsControl ItemsSource="{Binding CurrentNotes}"
-                                          Height="{Binding NotesCanvasHeight}"
-                                          Width="{Binding CanvasWidth}"
-                                          HorizontalAlignment="Left"
-                                          VerticalAlignment="Top">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <Canvas Height="{Binding NotesCanvasHeight}"
-                                                Width="{Binding CanvasWidth}"
-                                                SizeChanged="Canvas_SizeChanged"
-                                                MouseMove="Canvas_MouseMove"
-                                                MouseDown="Canvas_MouseDown"
-                                                MouseUp="Canvas_MouseUp"
-                                                Background="#01FFFFFF"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemContainerStyle>
-                                    <Style>
-                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
-                                        <Setter Property="Canvas.Bottom" Value="{Binding Bottom}" />
-                                    </Style>
-                                </ItemsControl.ItemContainerStyle>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <local:NoteView Width="{Binding Width}"
-                                                        Height="{Binding Height}"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                      Panel.ZIndex="11"
+                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
+                            <Canvas Height="{Binding NotesCanvasHeight}"
+                                    Width="{Binding CanvasWidth}"
+                                    SizeChanged="Canvas_SizeChanged"
+                                    MouseMove="Canvas_MouseMove"
+                                    MouseDown="Canvas_MouseDown"
+                                    MouseUp="Canvas_MouseUp"
+                                    Background="#01FFFFFF"
+                                    performance:ViewPool.Template="{StaticResource NoteTemplate}"
+                                    performance:ViewPool.DataContext="{Binding CurrentNotes}"/>
                         </ScrollViewer>
                     </Grid>
                     <Grid Grid.Column="1">

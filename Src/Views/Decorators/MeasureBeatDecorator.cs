@@ -187,13 +187,13 @@ namespace Auris_Studio.Views.Decorators
             double renderWidth = ActualWidth;
             double renderHeight = ActualHeight;
 
-            // *** 修正：身体区域起始Y的计算逻辑 ***
             double headerHeight = HeaderHeight;
             double headerStartY = 0;
-            double headerEndY = ShowHeader ? headerHeight : 0; // 头部显示时的结束Y坐标
-            // 关键修正：当ShowHeader为false时，bodyStartY = 0
+            double headerEndY = ShowHeader ? headerHeight : 0;
             double bodyStartY = ShowHeader ? headerEndY : 0;
             double bodyEndY = renderHeight;
+            double tickLineStartY = ShowHeader ? headerEndY : 0;
+            double tickLineEndY = renderHeight;
 
             // 头部区域内部的分割线顶部计算
             double headerBottom = headerEndY;
@@ -286,13 +286,13 @@ namespace Auris_Studio.Views.Decorators
                     }
                 }
 
-                if(tickLinePen != null)
+                if (tickLinePen != null)
                 {
                     var tickX = vm.NowTime * vm.WidthPerTick - vm.ViewportLeft;
 
                     dc.DrawLine(tickLinePen,
-                               new Point(tickX, 0),
-                               new Point(tickX, vm.ViewportHeight));
+                               new Point(tickX, tickLineStartY),
+                               new Point(tickX, tickLineEndY));
                 }
             }
         }

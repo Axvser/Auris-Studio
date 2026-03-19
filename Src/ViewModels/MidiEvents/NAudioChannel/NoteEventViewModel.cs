@@ -1,7 +1,5 @@
 ﻿using Auris_Studio.Midi;
 using NAudio.Midi;
-using System.Data.Common;
-using System.Reflection.Metadata;
 using VeloxDev.Core.MVVM;
 
 namespace Auris_Studio.ViewModels.MidiEvents;

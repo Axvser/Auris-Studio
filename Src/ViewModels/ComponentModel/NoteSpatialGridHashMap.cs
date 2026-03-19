@@ -1,5 +1,5 @@
-﻿using System.ComponentModel;
-using Auris_Studio.ViewModels.MidiEvents;
+﻿using Auris_Studio.ViewModels.MidiEvents;
+using System.ComponentModel;
 
 namespace Auris_Studio.ViewModels.ComponentModel
 {

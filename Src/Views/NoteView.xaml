@@ -8,7 +8,9 @@
              d:DesignHeight="450" d:DesignWidth="800"
              xmlns:vm="clr-namespace:Auris_Studio.ViewModels.MidiEvents"
              d:DataContext="{d:DesignInstance Type=vm:NoteEventViewModel,IsDesignTimeCreatable=True}"
-             Focusable="True">
+             Focusable="True"
+             BorderBrush="Black"
+             BorderThickness="1">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="1*"/>
