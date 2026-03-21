@@ -8,11 +8,10 @@ using VeloxDev.Core.WorkflowSystem;
 
 namespace Auris_Studio.ViewModels.Workflows;
 
-[WorkflowBuilder.ViewModel.Tree
-    <TreeHelper>]
-public partial class TreeViewModel
+[WorkflowBuilder.ViewModel.Tree<AIPipelineHelper>]
+public partial class AIPipelineViewModel
 {
-    public TreeViewModel() => InitializeWorkflow();
+    public AIPipelineViewModel() => InitializeWorkflow();
 
     // …… 自由扩展您的工作流树视图模型
 

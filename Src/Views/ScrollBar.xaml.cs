@@ -148,8 +148,21 @@ namespace Auris_Studio.Views
 
             if (width <= 0 || height <= 0) return;
 
-            // 计算可拖动轨道尺寸
-            _trackSize = new Size(width, height - 2 * BUTTON_SIZE);
+            try
+            {
+                // 计算可拖动轨道尺寸
+                var size = new Size(width, height - 2 * BUTTON_SIZE);
+                if (size.Height <= 52) throw new Exception();
+                _trackSize = size;
+            }
+            catch
+            {
+                Visibility = Visibility.Hidden;
+                return;
+            }
+
+            Visibility = Visibility.Visible;
+
 
             // 计算拖动条长度
             double totalRange = Math.Max(1, Maximum - Minimum);
@@ -215,8 +228,21 @@ namespace Auris_Studio.Views
 
             if (width <= 0 || height <= 0) return;
 
-            // 计算可拖动轨道尺寸
-            _trackSize = new Size(width - 2 * BUTTON_SIZE, height);
+            try
+            {
+                // 计算可拖动轨道尺寸
+                var size = new Size(width - 2 * BUTTON_SIZE, height);
+                if (size.Width <= 52) throw new Exception();
+                _trackSize = size;
+            }
+            catch
+            {
+                Visibility = Visibility.Hidden;
+                return;
+            }
+
+            Visibility = Visibility.Visible;
+
 
             // 1. 使用与垂直计算相同的数学模型
             double totalRange = Math.Max(1, Maximum - Minimum);

@@ -1,7 +1,7 @@
 ﻿using Auris_Studio.Midi;
 using Auris_Studio.ViewModels.ComponentModel;
-using Auris_Studio.ViewModels.Helpers;
 using Auris_Studio.ViewModels.MidiEvents;
+using Auris_Studio.ViewModels.Workflows;
 using NAudio.Midi;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -38,6 +38,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
     // 编辑音符时长所采用的对齐策略
     [VeloxProperty] private Alignment _alignment = Alignment.EighthNote;
 
+    // AI处理管道
+    [VeloxProperty] private ObservableCollection<AIPipelineViewModel> _aIPipelines = [];
+    [VeloxProperty] private AIPipelineViewModel? _currentAIPipeline;
+
     // [数据层] 计算属性
     [VeloxProperty] public partial long NowTime { get; internal set; } // 当前时间
     [VeloxProperty] public partial long MaxTime { get; internal set; } // 最大时间
@@ -54,6 +58,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial TimeOrderableCollection<NoteEventViewModel> CurrentNotes { get; internal set; } // 当前可见的音符
 
     // [视图层] 计算属性
+    [VeloxProperty] public partial TimeSpan CurrentTimeSpan { get; internal set; } // 当前时分秒
     [VeloxProperty] public partial double CanvasWidth { get; internal set; } // [共享]画布宽度
     [VeloxProperty] public partial double NotesCanvasHeight { get; internal set; } // [音符]画布高度
     [VeloxProperty] public partial double ControlCanvasHeight { get; internal set; } // [控制器]画布高度
@@ -139,6 +144,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         UpdateCurrentTempo(newValue);
         UpdateCurrentTimeSignature(newValue);
         UpdateCurrentKeySignature(newValue);
+        CurrentTimeSpan = TimeSpan.FromMilliseconds(newValue * TickTime);
     }
 
     partial void OnWidthPerTickChanged(double oldValue, double newValue)
@@ -549,12 +555,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
         {
             if (MaxTime - ViewportEndTime < PPQN)
             {
-                MaxTime += PPQN * 16;
+                MaxTime += PPQN;
             }
         }
         else
         {
-            MaxTime += (ViewportEndTime - MaxTime) + PPQN * 16;
+            MaxTime += (ViewportEndTime - MaxTime) + PPQN;
         }
     }
 

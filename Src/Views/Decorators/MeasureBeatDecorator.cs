@@ -286,7 +286,7 @@ namespace Auris_Studio.Views.Decorators
                     }
                 }
 
-                if (tickLinePen != null)
+                if (tickLinePen != null && vm.NowTime >= vm.ViewportStartTime && vm.NowTime <= vm.ViewportEndTime)
                 {
                     var tickX = vm.NowTime * vm.WidthPerTick - vm.ViewportLeft;
 

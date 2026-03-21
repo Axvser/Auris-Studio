@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Auris_Studio.ViewModels.Helpers;
+namespace Auris_Studio.ViewModels.ComponentModel;
 
 public static class MicrosecondDelay
 {

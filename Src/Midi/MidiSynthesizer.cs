@@ -1,8 +1,7 @@
-﻿using Auris_Studio.Midi;
-using NAudio.Midi;
+﻿using NAudio.Midi;
 using System.IO;
 
-namespace Auris_Studio.ViewModels.Helpers;
+namespace Auris_Studio.Midi;
 
 /// <summary>
 /// 基于NAudio的 <seealso cref="MidiFile"/> 合成

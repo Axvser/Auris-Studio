@@ -1,4 +1,5 @@
-﻿using Auris_Studio.ViewModels.Workflows.Helpers;
+﻿using Auris_Studio.Midi;
+using Auris_Studio.ViewModels.Workflows.Helpers;
 using System.Diagnostics;
 using System.IO;
 using VeloxDev.Core.MVVM;
@@ -6,7 +7,7 @@ using VeloxDev.Core.WorkflowSystem;
 
 namespace Auris_Studio.ViewModels.Workflows;
 
-[WorkflowBuilder.ViewModel.Node<AudioToMidiHelper>]
+[WorkflowBuilder.ViewModel.Node<BasicPitchConfigHelper>]
 public partial class BasicPitchConfigViewModel
 {
     // 程序.exe所在目录应确保存在下述位置
@@ -45,7 +46,6 @@ public partial class BasicPitchConfigViewModel
 
     // 进程引用
     private Process? _currentProcess;
-    private CancellationTokenSource? _processCts;
 
     #region 私有方法
 
@@ -177,21 +177,15 @@ public partial class BasicPitchConfigViewModel
     [VeloxCommand]
     private async Task Convert(object? parameter, CancellationToken ct)
     {
-        // 创建取消令牌
-        _processCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        await StartConversionProcessAsync(ct);
 
-        // 在后台线程执行，不处理任何结果
-        await Task.Run(async () =>
+        if (parameter is Action<MidiResult> action)
         {
-            try
-            {
-                await StartConversionProcessAsync(_processCts.Token);
-            }
-            catch
-            {
-                // 忽略所有异常
-            }
-        }, ct);
+            var rs = await MidiParser.ImportAsync(Path.Combine(
+                OutputDirectory,
+                $"{Path.GetFileNameWithoutExtension(AudioFilePath)}_basic_pitch{".mid"}"));
+            action.Invoke(rs);
+        }
     }
 
     [VeloxCommand]
@@ -199,16 +193,7 @@ public partial class BasicPitchConfigViewModel
     {
         if (_currentProcess != null && !_currentProcess.HasExited)
         {
-            try
-            {
-                _currentProcess.Kill();
-            }
-            catch
-            {
-                // 忽略所有异常
-            }
-
-            _processCts?.Cancel();
+            ConvertCommand.Clear();
         }
     }
 

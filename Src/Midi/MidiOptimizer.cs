@@ -1,7 +1,6 @@
-﻿using Auris_Studio.Midi;
-using NAudio.Midi;
+﻿using NAudio.Midi;
 
-namespace Auris_Studio.ViewModels.Helpers;
+namespace Auris_Studio.Midi;
 
 /// <summary>
 /// MIDI 数据优化器，默认所有优化全开，可创建 <seealso cref="MidiOptimizerOptions"/> 对象以配置

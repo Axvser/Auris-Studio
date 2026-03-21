@@ -4,14 +4,14 @@ using VeloxDev.Core.WorkflowSystem.StandardEx;
 
 namespace Auris_Studio.ViewModels.Workflows.Helpers;
 
-public class TreeHelper : WorkflowHelper.ViewModel.Tree
+public class AIPipelineHelper : WorkflowHelper.ViewModel.Tree
 {
-    private TreeViewModel? _viewModel;
+    private AIPipelineViewModel? _viewModel;
 
     public override void Install(IWorkflowTreeViewModel tree)
     {
         base.Install(tree);
-        _viewModel = tree as TreeViewModel;
+        _viewModel = tree as AIPipelineViewModel;
 
         // 使能空间索引，-1 状态码意味着使能失败
         if (_viewModel is not null && tree.EnableMap(240, _viewModel.VisibleItems) > -1)

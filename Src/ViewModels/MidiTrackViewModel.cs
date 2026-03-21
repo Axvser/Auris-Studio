@@ -73,6 +73,7 @@ public partial class MidiTrackViewModel
         {
             endNote.StopNoteCommand.Execute(tuple.Item2);
         }
+        tuple.Item2.Send(MidiMessage.ChangePatch((int)Patch, Channel).RawData);
         if (volume is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)volume.MidiController, volume.Value, Channel).RawData);
         if (pan is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)pan.MidiController, pan.Value, Channel).RawData);
         if (sustains is not null) tuple.Item2.Send(MidiMessage.ChangeControl((int)sustains.MidiController, sustains.Value, Channel).RawData);

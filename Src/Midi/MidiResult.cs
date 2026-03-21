@@ -1,7 +1,6 @@
-﻿using Auris_Studio.Midi;
-using NAudio.Midi;
+﻿using NAudio.Midi;
 
-namespace Auris_Studio.ViewModels.Helpers;
+namespace Auris_Studio.Midi;
 
 public class MidiResult
 {

@@ -148,9 +148,12 @@
                                     Width="{Binding CanvasWidth}"
                                     SizeChanged="Canvas_SizeChanged"
                                     MouseMove="Canvas_MouseMove"
-                                    MouseDown="Canvas_MouseDown"
-                                    MouseUp="Canvas_MouseUp"
-                                    Background="#01FFFFFF"
+                                    MouseLeftButtonDown="Canvas_MouseLeftDown"
+                                    MouseLeftButtonUp="Canvas_MouseLeftUp"
+                                    MouseRightButtonDown="Canvas_MouseRightButtonDown"
+                                    MouseRightButtonUp="Canvas_MouseRightButtonUp"
+                                    MouseLeave="Canvas_MouseLeave"
+                                    Background="#00FFFFFF"
                                     performance:ViewPool.Template="{StaticResource NoteTemplate}"
                                     performance:ViewPool.DataContext="{Binding CurrentNotes}"/>
                         </ScrollViewer>

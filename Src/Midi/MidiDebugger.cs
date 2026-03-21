@@ -1,9 +1,8 @@
-﻿using Auris_Studio.Midi;
-using NAudio.Midi;
+﻿using NAudio.Midi;
 using System.Reflection;
 using System.Text;
 
-namespace Auris_Studio.ViewModels.Helpers;
+namespace Auris_Studio.Midi;
 
 public static class MidiDebugger
 {

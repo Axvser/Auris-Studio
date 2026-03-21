@@ -1,4 +1,4 @@
-﻿namespace Auris_Studio.ViewModels.Helpers;
+﻿namespace Auris_Studio.Midi;
 
 /// <summary>
 /// MIDI 优化配置选项，支持 Fluent API 配置

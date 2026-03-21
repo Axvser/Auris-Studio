@@ -14,19 +14,24 @@ namespace Auris_Studio
             InitializeTheme();
         }
 
-
-        private void PlayButton_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
-
-        private void TestButton_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
+        }
+
+        private void CloseApp(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        private void ReSizeApp(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = this.WindowState == WindowState.Normal ? WindowState.Maximized : WindowState.Normal;
+        }
+
+        private void HideApp(object sender, RoutedEventArgs e)
+        {
+            this.WindowState = WindowState.Minimized;
         }
     }
 }

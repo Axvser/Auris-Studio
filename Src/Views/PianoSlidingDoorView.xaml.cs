@@ -67,7 +67,7 @@ namespace Auris_Studio.Views
             }
         }
 
-        private void Canvas_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void Canvas_MouseLeftDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (DataContext is MidiEditorViewModel vm)
             {
@@ -75,7 +75,7 @@ namespace Auris_Studio.Views
             }
         }
 
-        private void Canvas_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void Canvas_MouseLeftUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (DataContext is MidiEditorViewModel vm)
             {
@@ -95,6 +95,23 @@ namespace Auris_Studio.Views
         private void ScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
         {
             e.Handled = true;
+        }
+
+        private bool IsDragging { get; set; }
+
+        private void Canvas_MouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            IsDragging = true;
+        }
+
+        private void Canvas_MouseRightButtonUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            IsDragging = false;
+        }
+
+        private void Canvas_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            IsDragging = false;
         }
     }
 }

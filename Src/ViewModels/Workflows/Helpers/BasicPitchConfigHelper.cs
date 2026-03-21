@@ -2,7 +2,7 @@
 
 namespace Auris_Studio.ViewModels.Workflows.Helpers;
 
-public class AudioToMidiHelper : WorkflowHelper.ViewModel.Node
+public class BasicPitchConfigHelper : WorkflowHelper.ViewModel.Node
 {
 
 }

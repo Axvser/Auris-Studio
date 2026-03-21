@@ -1,5 +1,6 @@
-﻿using Auris_Studio.ViewModels;
-using Auris_Studio.ViewModels.Helpers;
+﻿using Auris_Studio.Midi;
+using Auris_Studio.ViewModels;
+using Auris_Studio.ViewModels.Workflows;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
@@ -17,12 +18,12 @@ namespace Auris_Studio.Views
             InitializeComponent();
         }
 
-        private async void SelectMidi_Click(object sender, RoutedEventArgs e)
+        private async void Import_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog
             {
-                Filter = "MIDI和JSON文件 (*.mid;*.json)|*.mid;*.json|所有文件 (*.*)|*.*",
-                Title = "请选择MIDI文件"
+                Filter = "Auris Studio Support (*.mid;*.json;*.mp3;*.wav;*.ogg;*.flac;*.m4a;)|*.mid;*.json;*.mp3;*.wav;*.ogg;*.flac;*.m4a;|所有文件 (*.*)|*.*",
+                Title = "Auris Studio / Import Midi"
             };
 
             if (openFileDialog.ShowDialog() != true)
@@ -45,14 +46,67 @@ namespace Auris_Studio.Views
             }
             else if (fileExtension == ".json")
             {
+                // 处理 MidiEditorViewModel
                 var stream = File.OpenRead(openFileDialog.FileName);
                 var context = await stream.TryDeserializeFromStreamAsync<MidiEditorViewModel>();
+                DataContext = context;
+            }
+            else if (fileExtension == ".mp3" ||
+                    fileExtension == ".wav" ||
+                    fileExtension == ".ogg" ||
+                    fileExtension == ".flac" ||
+                    fileExtension == ".m4a")
+            {
+                // Basic-Pitch 扒谱
+                // 测试临时用
+                var ai = new BasicPitchConfigViewModel
+                {
+                    AudioFilePath = openFileDialog.FileName
+                };
+                var context = new MidiEditorViewModel();
+                await ai.ConvertCommand.ExecuteAsync((MidiResult rs) =>
+                {
+                    context.Read(rs);
+                });
                 DataContext = context;
             }
             else
             {
                 MessageBox.Show($"⚠ *{fileExtension} 不受支持!");
             }
+        }
+
+        private async void Export_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                var openFolderDialog = new OpenFolderDialog()
+                {
+                    Title = "save as midi file"
+                };
+
+                if (openFolderDialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                var path = Path.Combine(openFolderDialog.FolderName, $"output.mid");
+                var midi = new MidiResult();
+                vm.WriteCommand.Execute(midi);
+                midi.Optimize();
+                await MidiSynthesizer.ExportAsync(midi, path);
+            }
+        }
+
+        private void AIPipeline_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Theme_Click(object sender, RoutedEventArgs e)
+        {
+            ThemeManager.Jump(
+                ThemeManager.Current == typeof(Dark) ? typeof(Light) : typeof(Dark));
         }
 
         private async void Diagnose_Click(object sender, RoutedEventArgs e)
@@ -151,12 +205,6 @@ namespace Auris_Studio.Views
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
-        }
-
-        private void Theme_Click(object sender, RoutedEventArgs e)
-        {
-            ThemeManager.Jump(
-                ThemeManager.Current == typeof(Dark) ? typeof(Light) : typeof(Dark));
         }
     }
 }

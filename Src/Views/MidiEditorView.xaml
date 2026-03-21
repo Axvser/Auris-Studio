@@ -8,23 +8,39 @@
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800"
              xmlns:vm="clr-namespace:Auris_Studio.ViewModels"
+             xmlns:v="clr-namespace:Auris_Studio.Views"
              d:DataContext="{d:DesignInstance Type=vm:MidiEditorViewModel,IsDesignTimeCreatable=True}"
              x:Name="Root">
+    <UserControl.Resources>
+        <Style TargetType="local:Button">
+            <Setter Property="ContentMargin" Value="14,10,14,10"/>
+            <Setter Property="BlurRadius" Value="20"/>
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="40"/>
-            <RowDefinition Height="8*"/>
-            <RowDefinition Height="1*"/>
+            <RowDefinition Height="10*"/>
+            <RowDefinition Height="1*" MaxHeight="50"/>
         </Grid.RowDefinitions>
 
         <!-- 编辑器头栏 -->
         <Grid Grid.Row="0">
-            <StackPanel Orientation="Horizontal">
-                <Button Content="File" Click="SelectMidi_Click"/>
-                <Button Content="Diagnose" Click="Diagnose_Click"/>
-                <Button Content="Theme" Click="Theme_Click" />
-                <Button Content="开始" Command="{Binding PlayCommand}"/>
-                <Button Content="停止" Command="{Binding StopCommand}"/>
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Left">
+                <local:Button ButtonContent="Import" 
+                              Click="Import_Click"/>
+                <local:Button ButtonContent="Export"
+                              Click="Export_Click"/>
+                <local:Button ButtonContent="AI Pipeline" 
+                              Click="AIPipeline_Click"/>
+                <local:Button ButtonContent="Diagnose" 
+                              Click="Diagnose_Click"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <local:Button ButtonContent="Theme" 
+                              Click="Theme_Click" />
             </StackPanel>
         </Grid>
 
@@ -49,10 +65,37 @@
 
         <!-- 编辑器底栏 -->
         <Grid Grid.Row="2">
-            <Viewbox>
-                <TextBlock Text="{Binding ViewportTop}"
-                           Foreground="{Binding ElementName=Root,Path=Foreground}"/>
-            </Viewbox>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <v:Button ButtonContent="M912.724884 429.355681L208.797545 13.198638C151.603449-20.597874 64.01249 12.198741 64.01249 95.790112V927.904219c0 74.992259 81.391599 120.187594 144.785055 82.591475l703.927339-415.957064c62.793518-36.996181 62.993498-128.186768 0-165.182949z"
+                      Command="{Binding PlayCommand}"
+                      x:Name="PlayButton"
+                      Grid.Column="5"
+                      UseHoverBackground="False"
+                      ContentMargin="6"/>
+            <v:Button ButtonContent="M128 256c0-70.6 57.4-128 128-128h512c70.6 0 128 57.4 128 128v512c0 70.6-57.4 128-128 128H256c-70.6 0-128-57.4-128-128V256z"
+                      Command="{Binding StopCommand}"
+                      x:Name="StopButton"
+                      Grid.Column="4"
+                      UseHoverBackground="False"
+                      ContentMargin="5"/>
+            <Grid Grid.Column="6">
+                <Viewbox>
+                    <TextBlock Text="{Binding CurrentTimeSpan, StringFormat={}{0:m\\:ss\\.fff}}"
+                               Foreground="{Binding ElementName=Root,Path=Foreground}"/>
+                </Viewbox>
+            </Grid>
         </Grid>
     </Grid>
 </UserControl>
