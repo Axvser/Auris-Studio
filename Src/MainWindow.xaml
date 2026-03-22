@@ -44,7 +44,7 @@
         </Grid>
 
         <Grid Grid.Row="1">
-            <v:MidiEditorView x:Name="Editor" 
+            <v:MidiEditorView x:Name="Editor"
                               Grid.Row="1"
                               Background="{Binding ElementName=Main,Path=Background}"
                               Foreground="{Binding ElementName=Main,Path=Foreground}"/>

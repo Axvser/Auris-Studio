@@ -33,13 +33,19 @@ public partial class BasicPitchConfigViewModel
     [VeloxProperty] private string _audioFilePath = string.Empty;
     [VeloxProperty] private string _outputDirectory = EXF_Path;  // 默认使用交换文件路径
     [VeloxProperty] private string _modelPath = Python_Model_npm_Path;  // 默认使用Python模型npm路径
-    [VeloxProperty] private bool _saveMidi = true;
-    [VeloxProperty] private bool _sonifyMidi = false;
 
     // 阈值参数
     [VeloxProperty] private double _onsetThreshold = 0.5;
     [VeloxProperty] private double _frameThreshold = 0.3;
-    [VeloxProperty] private double _minimumNoteLength = 50.0;
+    [VeloxProperty] private double _minimumNoteLength = 127.7;
+    [VeloxProperty] private double _minimumFrequency = 8.18;
+    [VeloxProperty] private double _maximumFrequency = 12543.85;
+    [VeloxProperty] private double _samplerate = 44100;
+    [VeloxProperty] private double _tempo = 120.0;
+
+    // 程序内部编辑所需参数
+    [VeloxProperty] private int _defChannel = 1;
+    [VeloxProperty] private int _defPatch = 0;
 
     // 可执行文件路径
     [VeloxProperty] private string _exePath = Python_Script_Path;  // 默认使用Python脚本路径
@@ -118,23 +124,23 @@ public partial class BasicPitchConfigViewModel
 
         var args = new List<string>
         {
-            audioPathJson,
-            $"\"{_outputDirectory}\"",
-            _saveMidi.ToString(),
-            _sonifyMidi.ToString(),
-            "False",  // save_model_outputs
-            "False",  // save_notes
-            $"\"{_modelPath}\"",
-            _onsetThreshold.ToString("F2"),
-            _frameThreshold.ToString("F2"),
-            _minimumNoteLength.ToString("F1"),
-            "None",   // minimum_frequency
-            "None",   // maximum_frequency
-            "False",  // multiple_pitch_bends
-            "True",   // melodia_trick
-            "None",   // debug_file
-            "22050",  // sonification_samplerate
-            "120.0"   // midi_tempo
+            audioPathJson,                     // 音频路径列表：Python列表格式的音频文件路径
+            $"\"{_outputDirectory}\"",         // 输出目录：模型输出结果（MIDI文件、音频预览等）的保存路径
+            "True",                            // 是否保存MIDI：True表示保存MIDI文件
+            "False",                           // 是否生成音频预览：True表示从MIDI生成音频文件
+            "False",                           // 是否保存模型输出：True保存原始模型输出（轮廓、起始点、音符等）
+            "False",                           // 是否保存音符事件：True保存音符事件数据
+            $"\"{_modelPath}\"",               // 模型路径：训练好的模型文件或模型目录路径
+            _onsetThreshold.ToString("F2"),    // 起始检测阈值：音符起始检测的最小能量阈值（范围0.0-1.0）
+            _frameThreshold.ToString("F2"),    // 帧阈值：每帧的最小能量阈值（范围0.0-1.0）
+            _minimumNoteLength.ToString("F1"), // 最小音符长度：允许的音符最小持续时间（单位：毫秒）
+            _minimumFrequency.ToString(),      // 最小频率：允许输出的最低频率（单位：Hz）
+            _maximumFrequency.ToString(),      // 最大频率：允许输出的最高频率（单位：Hz）
+            "True",                            // 多重音高弯曲：True允许MIDI文件中的重叠音符具有音高弯曲
+            "True",                            // Melodia技巧：使用Melodia后处理步骤
+            "None",                            // 调试文件：调试数据输出路径，用于测试/验证
+            _samplerate.ToString("F1"),        // 音频采样率：从MIDI渲染音频时的采样率
+            _tempo.ToString("F0")              // MIDI速度：生成的MIDI文件的默认速度
         };
 
         return string.Join(" ", args);
@@ -179,12 +185,12 @@ public partial class BasicPitchConfigViewModel
     {
         await StartConversionProcessAsync(ct);
 
-        if (parameter is Action<MidiResult> action)
+        if (parameter is Action<MidiResult, int, int> action)
         {
             var rs = await MidiParser.ImportAsync(Path.Combine(
                 OutputDirectory,
                 $"{Path.GetFileNameWithoutExtension(AudioFilePath)}_basic_pitch{".mid"}"));
-            action.Invoke(rs);
+            action.Invoke(rs, DefChannel, DefPatch);
         }
     }
 

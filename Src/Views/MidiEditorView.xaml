@@ -9,6 +9,7 @@
              d:DesignHeight="450" d:DesignWidth="800"
              xmlns:vm="clr-namespace:Auris_Studio.ViewModels"
              xmlns:v="clr-namespace:Auris_Studio.Views"
+             xmlns:v_wk="clr-namespace:Auris_Studio.Views.Workflow"
              d:DataContext="{d:DesignInstance Type=vm:MidiEditorViewModel,IsDesignTimeCreatable=True}"
              x:Name="Root">
     <UserControl.Resources>
@@ -28,14 +29,15 @@
         <Grid Grid.Row="0">
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Left">
-                <local:Button ButtonContent="Import" 
+                <local:Button ButtonContent="Import"
                               Click="Import_Click"/>
                 <local:Button ButtonContent="Export"
                               Click="Export_Click"/>
-                <local:Button ButtonContent="AI Pipeline" 
-                              Click="AIPipeline_Click"/>
-                <local:Button ButtonContent="Diagnose" 
+                <local:Button ButtonContent="Diagnose"
                               Click="Diagnose_Click"/>
+                <local:Button x:Name="Component"
+                              ButtonContent="AI Pipeline"
+                              Click="Component_Click"/>
             </StackPanel>
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right">
@@ -96,6 +98,16 @@
                                Foreground="{Binding ElementName=Root,Path=Foreground}"/>
                 </Viewbox>
             </Grid>
+        </Grid>
+
+        <!-- 工作流配置 -->
+        <Grid Grid.Row="1" Grid.RowSpan="2">
+            <v_wk:AIPipelineView x:Name="AIPipelineView" 
+                                 Grid.RowSpan="2"
+                                 Visibility="Hidden"
+                                 DataContext="{Binding AIPipeline}"
+                                 Background="{Binding ElementName=Root,Path=Background}"
+                                 Foreground="{Binding ElementName=Root,Path=Foreground}"/>
         </Grid>
     </Grid>
 </UserControl>

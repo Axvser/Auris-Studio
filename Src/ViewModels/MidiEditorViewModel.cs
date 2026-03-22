@@ -8,6 +8,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
+using VeloxDev.Core.Interfaces.WorkflowSystem;
 using VeloxDev.Core.MVVM;
 
 namespace Auris_Studio.ViewModels;
@@ -39,8 +40,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] private Alignment _alignment = Alignment.EighthNote;
 
     // AI处理管道
-    [VeloxProperty] private ObservableCollection<AIPipelineViewModel> _aIPipelines = [];
-    [VeloxProperty] private AIPipelineViewModel? _currentAIPipeline;
+    [VeloxProperty] private AIPipelineViewModel _aIPipeline = new();
 
     // [数据层] 计算属性
     [VeloxProperty] public partial long NowTime { get; internal set; } // 当前时间
@@ -115,6 +115,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         Kss.CollectionChanged += OnKeySignatureEventsChanged;
         Lyrics.CollectionChanged += OnLyricsEventsChanged;
 
+        LoadDefPipeline();
         UpdateTickTime();
         UpdateNotesCanvasHeight();
         LoadPianoKeys();
@@ -567,6 +568,30 @@ public partial class MidiEditorViewModel : IMidiFormatable
     #endregion
 
     #region [Helper] 数据更新
+
+    private void LoadDefPipeline()
+    {
+        var node = new BasicPitchConfigViewModel()
+        {
+            Size = new(280, 600),
+            Anchor = new(0, 0)
+        };
+        var slotA = new SlotViewModel()
+        {
+            Size = new(20),
+            VisualPoint = new(left: 0.1, top: 0.5),
+            Channel = SlotChannel.MultipleBoth
+        };
+        var slotB = new SlotViewModel()
+        {
+            Size = new(20),
+            VisualPoint = new(left: 0.9, top: 0.5),
+            Channel = SlotChannel.MultipleBoth
+        };
+        node.CreateSlotCommand.Execute(slotA);
+        node.CreateSlotCommand.Execute(slotB);
+        AIPipeline.CreateNodeCommand.Execute(node);
+    }
 
     private void LoadPianoKeys()
     {

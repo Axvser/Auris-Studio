@@ -13,13 +13,20 @@ namespace Auris_Studio.Views
 {
     public partial class MidiEditorView : UserControl
     {
+        private MidiEditorViewModel _viewModel;
+
         public MidiEditorView()
         {
             InitializeComponent();
+
+            _viewModel = new MidiEditorViewModel();
+            DataContext = _viewModel;
         }
 
         private async void Import_Click(object sender, RoutedEventArgs e)
         {
+            _viewModel.StopCommand.Execute(null);
+
             var openFileDialog = new OpenFileDialog
             {
                 Filter = "Auris Studio Support (*.mid;*.json;*.mp3;*.wav;*.ogg;*.flac;*.m4a;)|*.mid;*.json;*.mp3;*.wav;*.ogg;*.flac;*.m4a;|所有文件 (*.*)|*.*",
@@ -40,16 +47,18 @@ namespace Auris_Studio.Views
                 // 处理 MIDI 文件
                 var result = await MidiParser.ImportAsync(openFileDialog.FileName);
                 result.Optimize();
-                var context = new MidiEditorViewModel();
-                context.ReadCommand.Execute(result);
-                DataContext = context;
+                _viewModel.ReadCommand.Execute(result);
             }
             else if (fileExtension == ".json")
             {
                 // 处理 MidiEditorViewModel
                 var stream = File.OpenRead(openFileDialog.FileName);
-                var context = await stream.TryDeserializeFromStreamAsync<MidiEditorViewModel>();
-                DataContext = context;
+                var (Success, Result) = await stream.TryDeserializeFromStreamAsync<MidiEditorViewModel>();
+                if (Success)
+                {
+                    DataContext = Result;
+                    _viewModel = Result!;
+                }
             }
             else if (fileExtension == ".mp3" ||
                     fileExtension == ".wav" ||
@@ -59,16 +68,19 @@ namespace Auris_Studio.Views
             {
                 // Basic-Pitch 扒谱
                 // 测试临时用
-                var ai = new BasicPitchConfigViewModel
-                {
-                    AudioFilePath = openFileDialog.FileName
-                };
+                var ai = ((DataContext as MidiEditorViewModel)?.AIPipeline?.Nodes?.FirstOrDefault() as BasicPitchConfigViewModel)
+                    ?? new BasicPitchConfigViewModel();
+                ai.AudioFilePath = openFileDialog.FileName;
                 var context = new MidiEditorViewModel();
-                await ai.ConvertCommand.ExecuteAsync((MidiResult rs) =>
+                await ai.ConvertCommand.ExecuteAsync((MidiResult rs, int channel, int patch) =>
                 {
-                    context.Read(rs);
+                    _viewModel.ReadCommand.Execute(rs);
+                    foreach (var track in _viewModel.Tracks)
+                    {
+                        track.Channel = channel;
+                        track.Patch = (Patch)patch;
+                    }
                 });
-                DataContext = context;
             }
             else
             {
@@ -78,6 +90,8 @@ namespace Auris_Studio.Views
 
         private async void Export_Click(object sender, RoutedEventArgs e)
         {
+            _viewModel.StopCommand.Execute(null);
+
             if (DataContext is MidiEditorViewModel vm)
             {
                 var openFolderDialog = new OpenFolderDialog()
@@ -98,9 +112,22 @@ namespace Auris_Studio.Views
             }
         }
 
-        private void AIPipeline_Click(object sender, RoutedEventArgs e)
+        private void Component_Click(object sender, RoutedEventArgs e)
         {
+            _viewModel.StopCommand.Execute(null);
 
+            if (AIPipelineView.Visibility == Visibility.Visible)
+            {
+                Component.ButtonContent = "AI Pipeline";
+                AIPipelineView.Visibility = Visibility.Hidden;
+                PianoSlidingDoorView.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                Component.ButtonContent = "Piano Sliding Door";
+                AIPipelineView.Visibility = Visibility.Visible;
+                PianoSlidingDoorView.Visibility = Visibility.Hidden;
+            }
         }
 
         private void Theme_Click(object sender, RoutedEventArgs e)
@@ -111,8 +138,10 @@ namespace Auris_Studio.Views
 
         private async void Diagnose_Click(object sender, RoutedEventArgs e)
         {
+            _viewModel.StopCommand.Execute(null);
+
             // 1. 让用户选择原始 MIDI 文件
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            var openFileDialog = new OpenFileDialog
             {
                 Filter = "MIDI 文件 (*.mid)|*.mid|所有文件 (*.*)|*.*",
                 Title = "选择要诊断的 MIDI 文件",
@@ -125,7 +154,12 @@ namespace Auris_Studio.Views
             }
 
             string originalMidiPath = openFileDialog.FileName;
-            string baseDirectory = Path.GetDirectoryName(originalMidiPath);
+            string? baseDirectory = Path.GetDirectoryName(originalMidiPath);
+            if (baseDirectory == null)
+            {
+                MessageBox.Show($"error path : {originalMidiPath}");
+                return;
+            }
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(originalMidiPath);
 
             // 2. 在用户选择的目录中创建测试文件
