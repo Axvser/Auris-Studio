@@ -16,6 +16,15 @@ namespace Auris_Studio.Views
         public MidiEditorView()
         {
             InitializeComponent();
+            DataContextChanged += MidiEditorView_DataContextChanged;
+        }
+
+        private void MidiEditorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.OldValue is MidiEditorViewModel viewModel)
+            {
+                viewModel.CurrentNotes.Clear();
+            }
         }
 
         private async void Import_Click(object sender, RoutedEventArgs e)
