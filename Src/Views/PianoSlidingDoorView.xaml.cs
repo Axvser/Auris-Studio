@@ -113,5 +113,21 @@ namespace Auris_Studio.Views
         {
             IsDragging = false;
         }
+
+        private void HorizontalScaleUp_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.WidthPerQuarterNote = Math.Clamp(vm.WidthPerQuarterNote + 10, 20, double.MaxValue);
+            }
+        }
+
+        private void HorizontalScaleDown_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.WidthPerQuarterNote = Math.Clamp(vm.WidthPerQuarterNote - 10, 20, double.MaxValue);
+            }
+        }
     }
 }

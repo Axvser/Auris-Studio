@@ -17,14 +17,27 @@ namespace Auris_Studio.Views
         {
             InitializeComponent();
             DataContextChanged += MidiEditorView_DataContextChanged;
+            DataContext = new MidiEditorViewModel();
         }
 
         private void MidiEditorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.OldValue is MidiEditorViewModel viewModel)
+            var oldValue = e.OldValue as MidiEditorViewModel;
+            oldValue?.CurrentNotes.Clear();
+            if (e.NewValue is MidiEditorViewModel viewModel1)
             {
-                viewModel.CurrentNotes.Clear();
+                if (oldValue?.AIPipeline is not null) viewModel1.AIPipeline = oldValue.AIPipeline;
             }
+        }
+
+        private void ToMostLeft_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void ToMostRight_Click(object sender, RoutedEventArgs e)
+        {
+
         }
 
         private async void Import_Click(object sender, RoutedEventArgs e)
@@ -61,7 +74,9 @@ namespace Auris_Studio.Views
                 var (Success, Result) = await stream.TryDeserializeFromStreamAsync<MidiEditorViewModel>();
                 if (Success)
                 {
+                    var pipeline = Result?.AIPipeline;
                     DataContext = Result;
+                    if (pipeline is not null) Result?.AIPipeline = pipeline;
                 }
             }
             else if (fileExtension == ".mp3" ||

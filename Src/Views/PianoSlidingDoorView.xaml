@@ -25,7 +25,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="1*"/>
             <RowDefinition Height="4"/>
-            <RowDefinition Height="0.618*"/>
+            <RowDefinition Height="0.618*" MinHeight="45"/>
         </Grid.RowDefinitions>
         <Grid Grid.Row="0">
             <Grid.RowDefinitions>
@@ -40,6 +40,22 @@
                     <ColumnDefinition />
                     <ColumnDefinition Width="15"/>
                 </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <local:Button ButtonContent="M400.0768 586.3424L122.5216 865.28l36.3008 36.096 277.248-278.6304v173.5168h51.2v-261.12h-261.12v51.2h173.9264zM865.1776 122.624l-280.7296 282.1632v-173.568h-51.2v261.1712h261.1712v-51.2h-173.9776L901.4784 158.72l-36.3008-36.096z" 
+                                  Grid.Column="0" 
+                                  Click="HorizontalScaleDown_Click"
+                                  ContentMargin="5"/>
+                    <local:Button ButtonContent="M831.5392 401.8176h51.2v-261.12h-261.12v51.2h173.9264l-277.5552 278.9376 36.3008 36.096 277.248-278.6304v173.5168zM402.432 832.1024H228.4544l281.088-282.4192-36.3008-36.096-280.7808 282.112v-173.5168h-51.2v261.12H402.432v-51.2z" 
+                                  Grid.Column="1" 
+                                  Click="HorizontalScaleUp_Click"
+                                  ContentMargin="5"/>
+                </Grid>
+                
                 <!-- 头分割线绘制 -->
                 <Border Grid.Column="1"
                         decorators:DecoratorHelper.ShowMeasureBeatLines="True"
@@ -143,7 +159,8 @@
                                       x:Name="NotesScrollViewer"
                                       SizeChanged="NotesScrollViewer_SizeChanged"
                                       Panel.ZIndex="11"
-                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
+                                      PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
+                                      IsEnabled="{Binding IsEnabled}">
                             <Canvas Height="{Binding NotesCanvasHeight}"
                                     Width="{Binding CanvasWidth}"
                                     SizeChanged="Canvas_SizeChanged"

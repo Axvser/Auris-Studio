@@ -85,6 +85,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial double PointerTop { get; internal set; } // 鼠标对于Canvas顶侧
     [VeloxProperty] public partial int PointerNote { get; internal set; } // 鼠标所处音高
     [VeloxProperty] public partial int PointerOperation { get; internal set; } // 1 → AbsTime / 2 → DelTime / 3 → 整体移动
+    [VeloxProperty] public partial bool IsPlaying { get; internal set; } // 是否正在播放
+    [VeloxProperty] public partial bool IsEnabled { get; internal set; } // 是否可交互
 
     public MidiEditorViewModel()
     {
@@ -105,6 +107,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         HeightPerLine = 10;
         CanvasWidth = 0;
         ControlCanvasHeight = 100;
+        IsEnabled = true;
 
         Tracks.CollectionChanged += OnTracksChanged;
         Texts.CollectionChanged += OnTextsChanged;
@@ -151,9 +154,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
     partial void OnWidthPerTickChanged(double oldValue, double newValue)
     {
         CanvasWidth = MaxTime * newValue;
-        foreach (var note in CurrentNotes)
+        foreach (var track in Tracks)
         {
-            UpdateNote(note);
+            foreach (var note in track.Notes)
+            {
+                UpdateNote(note);
+            }
         }
     }
 
@@ -1025,6 +1031,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
             try
             {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    IsEnabled = false;
+                    IsPlaying = true;
+                });
+
                 while (!cts.IsCancellationRequested && NowTime < MaxTime)
                 {
                     long currentLogicalTick = NowTime;
@@ -1067,6 +1079,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 }
                 playbackStopwatch.Stop();
                 playbackCompleted.Set();
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    IsEnabled = true;
+                    IsPlaying = false;
+                });
             }
         }, cts.Token);
 

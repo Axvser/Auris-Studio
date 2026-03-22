@@ -1,3 +1,4 @@
+using Auris_Studio.ViewModels;
 using System.Windows;
 using VeloxDev.Core.DynamicTheme;
 using VeloxDev.WPF.PlatformAdapters;
@@ -16,6 +17,7 @@ namespace Auris_Studio
 
         protected override void OnClosed(EventArgs e)
         {
+            if (Editor.DataContext is MidiEditorViewModel editor) editor.StopCommand.Execute(null);
             base.OnClosed(e);
         }
 
