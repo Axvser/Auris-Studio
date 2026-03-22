@@ -36,12 +36,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
 
         public TimeOrderableCollection() { }
 
-        public TimeOrderableCollection(IEnumerable<T> items)
-        {
-            if (items == null) return;
-            AddRange(items);
-        }
-
         public int Count => _reverseIndex.Count;
         public bool IsReadOnly => false;
         public bool Contains(T item) => item != null && _reverseIndex.ContainsKey(item);
@@ -75,61 +69,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
                     _visibleStartTicks.Add(startTick);
                     OnCollectionChanged(NotifyCollectionChangedAction.Add, item, _visibleItems.Count - 1);
                 }
-            }
-        }
-
-        public void AddRange(IEnumerable<T> items)
-        {
-            if (items == null) return;
-
-            var itemsToAdd = items.Where(item => item != null && !_reverseIndex.ContainsKey(item)).ToList();
-            if (itemsToAdd.Count == 0) return;
-
-            var newVisibleItems = new List<T>();
-            var newVirtualizedItems = new List<T>();
-
-            foreach (var item in itemsToAdd)
-            {
-                long startTick = item.AbsoluteTime;
-                long endTick = startTick + item.DeltaTime;
-                bool isVirtualized = _isVirtualized && !IsItemVisible(startTick, endTick);
-
-                AddEndTime(endTick);
-                AddToBucket(item, startTick, endTick, isVirtualized);
-                item.PropertyChanged += OnItemPropertyChanged;
-
-                if (!isVirtualized)
-                {
-                    newVisibleItems.Add(item);
-                }
-                else
-                {
-                    newVirtualizedItems.Add(item);
-                }
-            }
-
-            UpdateMaxTime();
-
-            if (newVisibleItems.Count > 0)
-            {
-                newVisibleItems.Sort((a, b) => a.AbsoluteTime.CompareTo(b.AbsoluteTime));
-
-                int insertIndex = 0;
-                foreach (var item in newVisibleItems)
-                {
-                    insertIndex = FindInsertIndex(item.AbsoluteTime, insertIndex);
-                    if (insertIndex >= 0 && insertIndex <= _visibleItems.Count)
-                    {
-                        _visibleItems.Insert(insertIndex, item);
-                    }
-                    else
-                    {
-                        _visibleItems.Add(item);
-                    }
-                    _visibleStartTicks.Add(item.AbsoluteTime);
-                }
-
-                OnCollectionChanged(NotifyCollectionChangedAction.Reset);
             }
         }
 
@@ -222,11 +161,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
             }
 
             ProcessVisibilityChanges(itemsToVirtualize, itemsToRestore);
-
-            if (itemsToVirtualize.Count > 0 || itemsToRestore.Count > 0)
-            {
-                OnCollectionChanged(NotifyCollectionChangedAction.Reset);
-            }
         }
 
         public void Restore(Action<T>? added = null)
@@ -271,8 +205,6 @@ namespace Auris_Studio.ViewModels.ComponentModel
 
                 added?.Invoke(item);
             }
-
-            OnCollectionChanged(NotifyCollectionChangedAction.Reset);
         }
 
         public T? FindFirstAtOrAfter(long tick)
