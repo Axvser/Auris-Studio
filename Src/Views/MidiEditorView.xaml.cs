@@ -13,19 +13,14 @@ namespace Auris_Studio.Views
 {
     public partial class MidiEditorView : UserControl
     {
-        private MidiEditorViewModel _viewModel;
-
         public MidiEditorView()
         {
             InitializeComponent();
-
-            _viewModel = new MidiEditorViewModel();
-            DataContext = _viewModel;
         }
 
         private async void Import_Click(object sender, RoutedEventArgs e)
         {
-            _viewModel.StopCommand.Execute(null);
+            if (DataContext is MidiEditorViewModel vm) vm.StopCommand.Execute(null);
 
             var openFileDialog = new OpenFileDialog
             {
@@ -46,8 +41,9 @@ namespace Auris_Studio.Views
             {
                 // 处理 MIDI 文件
                 var result = await MidiParser.ImportAsync(openFileDialog.FileName);
-                result.Optimize();
-                _viewModel.ReadCommand.Execute(result);
+                var context = new MidiEditorViewModel();
+                context.Read(result);
+                DataContext = context;
             }
             else if (fileExtension == ".json")
             {
@@ -57,7 +53,6 @@ namespace Auris_Studio.Views
                 if (Success)
                 {
                     DataContext = Result;
-                    _viewModel = Result!;
                 }
             }
             else if (fileExtension == ".mp3" ||
@@ -74,12 +69,14 @@ namespace Auris_Studio.Views
                 var context = new MidiEditorViewModel();
                 await ai.ConvertCommand.ExecuteAsync((MidiResult rs, int channel, int patch) =>
                 {
-                    _viewModel.ReadCommand.Execute(rs);
-                    foreach (var track in _viewModel.Tracks)
+                    var context = new MidiEditorViewModel();
+                    context.Read(rs);
+                    foreach (var track in context.Tracks)
                     {
                         track.Channel = channel;
                         track.Patch = (Patch)patch;
                     }
+                    DataContext = context;
                 });
             }
             else
@@ -90,10 +87,9 @@ namespace Auris_Studio.Views
 
         private async void Export_Click(object sender, RoutedEventArgs e)
         {
-            _viewModel.StopCommand.Execute(null);
-
             if (DataContext is MidiEditorViewModel vm)
             {
+                vm.StopCommand.Execute(null);
                 var openFolderDialog = new OpenFolderDialog()
                 {
                     Title = "save as midi file"
@@ -107,14 +103,13 @@ namespace Auris_Studio.Views
                 var path = Path.Combine(openFolderDialog.FolderName, $"output.mid");
                 var midi = new MidiResult();
                 vm.WriteCommand.Execute(midi);
-                midi.Optimize();
                 await MidiSynthesizer.ExportAsync(midi, path);
             }
         }
 
         private void Component_Click(object sender, RoutedEventArgs e)
         {
-            _viewModel.StopCommand.Execute(null);
+            if (DataContext is MidiEditorViewModel vm) vm.StopCommand.Execute(null);
 
             if (AIPipelineView.Visibility == Visibility.Visible)
             {
@@ -138,7 +133,7 @@ namespace Auris_Studio.Views
 
         private async void Diagnose_Click(object sender, RoutedEventArgs e)
         {
-            _viewModel.StopCommand.Execute(null);
+            if (DataContext is MidiEditorViewModel vm) vm.StopCommand.Execute(null);
 
             // 1. 让用户选择原始 MIDI 文件
             var openFileDialog = new OpenFileDialog
@@ -182,7 +177,6 @@ namespace Auris_Studio.Views
                 var result = await MidiParser.ImportAsync(originalMidiPath);
 
                 // 步骤2: 优化并导出第一个调试文件
-                result.Optimize();
                 await result.ExportAsync(debugMidiPath);
                 await result.BuildMarkdownAsync(debugMdPath);
 
@@ -193,7 +187,6 @@ namespace Auris_Studio.Views
                 editor.Write(newResult);
 
                 // 步骤4: 优化并导出第二个调试文件
-                newResult.Optimize();
                 await newResult.ExportAsync(debugMidi1Path);
                 await newResult.BuildMarkdownAsync(debugMd1Path);
 
@@ -207,7 +200,6 @@ namespace Auris_Studio.Views
                     // 步骤6: 导出第三个调试文件
                     var newResult1 = new MidiResult();
                     Result.Write(newResult1);
-                    newResult1.Optimize();
                     await newResult1.ExportAsync(debugMidi2Path);
                     await newResult1.BuildMarkdownAsync(debugMd2Path);
                 }

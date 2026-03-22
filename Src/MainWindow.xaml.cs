@@ -33,5 +33,27 @@ namespace Auris_Studio
         {
             this.WindowState = WindowState.Minimized;
         }
+
+        private bool IsDragging { get; set; }
+
+        private void Grid_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            IsDragging = true;
+        }
+
+        private void Grid_MouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            IsDragging = false;
+        }
+
+        private void Grid_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            if (IsDragging) DragMove();
+        }
+
+        private void Grid_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            IsDragging = false;
+        }
     }
 }

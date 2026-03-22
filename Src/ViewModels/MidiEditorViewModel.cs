@@ -1116,8 +1116,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         if (parameter is not MidiResult midiResult) return;
 
-        midiResult.Optimize();
-
         Tracks.Clear();
         Tempos.Clear();
         Tss.Clear();

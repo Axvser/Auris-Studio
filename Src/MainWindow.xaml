@@ -25,7 +25,11 @@
             <RowDefinition />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
+        <Grid Grid.Row="0" Background="#01FFFFFF"
+              MouseDown="Grid_MouseDown"
+              MouseUp="Grid_MouseUp"
+              MouseMove="Grid_MouseMove"
+              MouseLeave="Grid_MouseLeave">
             <StackPanel Orientation="Horizontal"
                         FlowDirection="RightToLeft"
                         HorizontalAlignment="Right"
