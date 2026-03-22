@@ -4,10 +4,12 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using VeloxDev.Core.DynamicTheme;
+using VeloxDev.Core.TimeLine;
 using Converter = VeloxDev.WPF.PlatformAdapters.BrushConverter;
 
 namespace Auris_Studio.Views.Decorators
 {
+    [MonoBehaviour]
     [ThemeConfig<Converter, Dark, Light>(nameof(MeasureLineBrush), [nameof(Brushes.DarkGray)], [nameof(Brushes.Black)])]
     [ThemeConfig<Converter, Dark, Light>(nameof(HeaderTextBrush), [nameof(Brushes.DarkGray)], [nameof(Brushes.Black)])]
     [ThemeConfig<Converter, Dark, Light>(nameof(BeatLineBrush), [nameof(Brushes.LightGray)], [nameof(Brushes.Black)])]
@@ -17,11 +19,19 @@ namespace Auris_Studio.Views.Decorators
 
         private const double GoldenRatio = 0.618;
 
+        private bool _limit = true;
+
         public MeasureBeatDecorator()
         {
             InitializeTheme();
+            MonoBehaviourManager.RegisterBehaviour(this);
             DataContextChanged += OnDataContextChanged;
             Unloaded += OnDecoratorUnloaded;
+        }
+
+        partial void Update(FrameEventArgs e)
+        {
+            _limit = false;
         }
 
         #region 依赖属性
@@ -150,6 +160,8 @@ namespace Auris_Studio.Views.Decorators
                 e.PropertyName == nameof(MidiEditorViewModel.PPQN) ||
                 e.PropertyName == nameof(MidiEditorViewModel.NowTime))
             {
+                if (_limit) return;
+                _limit = true;
                 InvalidateVisual();
             }
         }
