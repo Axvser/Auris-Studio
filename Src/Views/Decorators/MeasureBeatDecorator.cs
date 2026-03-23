@@ -160,7 +160,7 @@ namespace Auris_Studio.Views.Decorators
                 e.PropertyName == nameof(MidiEditorViewModel.PPQN) ||
                 e.PropertyName == nameof(MidiEditorViewModel.NowTime))
             {
-                if (_limit) return;
+                if ((_viewModel?.IsPlaying ?? false) && _limit) return;
                 _limit = true;
                 InvalidateVisual();
             }

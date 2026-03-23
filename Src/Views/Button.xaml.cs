@@ -211,6 +211,7 @@ namespace Auris_Studio.Views
 
         private int _mouseDownTime = 0;
         private int _mouseUpTime = 0;
+        private bool _hovered = false;
 
         private void Border_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -228,12 +229,14 @@ namespace Auris_Studio.Views
         {
             ClearClick();
             LoadHoverAnimation();
+            _hovered = true;
         }
 
         private void Border_MouseLeave(object sender, MouseEventArgs e)
         {
             ClearClick();
             LoadNoHoverAnimation();
+            _hovered = false;
         }
 
         private void CheckClick(MouseButtonEventArgs e)
@@ -252,6 +255,14 @@ namespace Auris_Studio.Views
         {
             _mouseDownTime = 0;
             _mouseUpTime = 0;
+        }
+
+        partial void OnThemeChanged(Type? oldValue, Type? newValue)
+        {
+            if (_hovered && newValue is not null)
+            {
+                LoadHoverAnimation();
+            }
         }
 
         private void LoadHoverAnimation()

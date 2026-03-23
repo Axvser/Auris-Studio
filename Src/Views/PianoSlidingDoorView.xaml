@@ -175,6 +175,10 @@
                                     performance:ViewPool.DataContext="{Binding CurrentNotes}"/>
                         </ScrollViewer>
                     </Grid>
+                    <Grid Grid.Column="0">
+                        <decorators:WaitingView Width="{Binding ActualHeight,RelativeSource={RelativeSource AncestorType=Grid}}"
+                                                Height="{Binding ActualHeight,RelativeSource={RelativeSource AncestorType=Grid}}"/>
+                    </Grid>
                     <Grid Grid.Column="1">
                         <local:ScrollBar x:Name="VerticalScrollBar"
                                          Minimum="0"
