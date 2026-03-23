@@ -1079,7 +1079,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 }
                 playbackStopwatch.Stop();
                 playbackCompleted.Set();
-                Application.Current.Dispatcher.Invoke(() =>
+                Application.Current?.Dispatcher?.Invoke(() =>
                 {
                     IsEnabled = true;
                     IsPlaying = false;

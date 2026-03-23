@@ -206,7 +206,8 @@
                                  Minimum="0"
                                  Maximum="{Binding CanvasWidth}"
                                  ViewportSize="{Binding ElementName=NotesScrollViewer,Path=ViewportWidth}"
-                                 OffsetChanged="HorizontalScrollBar_OffsetChanged"/>
+                                 OffsetChanged="HorizontalScrollBar_OffsetChanged"
+                                 MouseDown="HorizontalScrollBar_MouseDown"/>
             </Grid>
         </Grid>
     </Grid>

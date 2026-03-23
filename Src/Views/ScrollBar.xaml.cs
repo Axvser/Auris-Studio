@@ -108,6 +108,60 @@ namespace Auris_Studio.Views
         private const double MIN_DRAGBAR_SIZE = 20; // 最小拖动条尺寸
         private const double BUTTON_SIZE = 16; // 按钮尺寸
 
+        public void SetValueSafely(double? value = null, double? offset = null, bool updateViewport = true)
+        {
+            // 确定要应用的目标值
+            _ = Value;
+            double targetValue;
+            if (value.HasValue && offset.HasValue)
+            {
+                // 如果两个参数都提供，优先使用 value
+                targetValue = value.Value;
+            }
+            else if (value.HasValue)
+            {
+                targetValue = value.Value;
+            }
+            else if (offset.HasValue)
+            {
+                targetValue = offset.Value;
+            }
+            else
+            {
+                // 两个参数都为null，无需任何操作
+                return;
+            }
+
+            // 计算有效的、经过夹取的值
+            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
+            double maxScrollableValue = Minimum + scrollableRange;
+            double clampedValue = Math.Max(Minimum, Math.Min(maxScrollableValue, targetValue));
+
+            // 设置内部标志，以阻止 Value 和 Offset 属性变更处理器之间的相互调用
+            _isUpdatingValueFromOffset = true;
+            _isUpdatingOffsetFromValue = true;
+
+            try
+            {
+                // 设置新的值
+                Value = clampedValue;
+                // 确保偏移量同步
+                Offset = clampedValue;
+            }
+            finally
+            {
+                // 无论是否发生异常，都重置标志，以确保控件状态恢复正常
+                _isUpdatingValueFromOffset = false;
+                _isUpdatingOffsetFromValue = false;
+            }
+
+            // 如果需要，更新控件布局
+            if (updateViewport)
+            {
+                UpdateContentLayout();
+            }
+        }
+
         #region 布局计算相关方法
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -459,8 +513,6 @@ namespace Auris_Studio.Views
             double newValue = Value - SmallChange;
             _isUpdatingValueFromOffset = false;
             _isUpdatingOffsetFromValue = false;
-            double scrollableRange = Math.Max(1, (Maximum - ViewportSize) - Minimum);
-            double maxScrollableValue = Minimum + scrollableRange;
             Value = Math.Max(Minimum, newValue);
         }
 
@@ -490,7 +542,6 @@ namespace Auris_Studio.Views
                 // 点击了拖动条前面的轨道
                 _isUpdatingValueFromOffset = false;
                 _isUpdatingOffsetFromValue = false;
-                double maxScrollableValue = Minimum + scrollableRange;
                 Value = Math.Max(Minimum, Value - LargeChange);
             }
             else
@@ -572,8 +623,7 @@ namespace Auris_Studio.Views
 
         private double CalculateValueFromPosition(Point position)
         {
-            double pixelRatio = 0;
-
+            double pixelRatio;
             if (Orientation == Orientation.Vertical)
             {
                 double trackHeight = _trackSize.Height;

@@ -1,14 +1,42 @@
 ﻿using Auris_Studio.ViewModels;
 using System.Windows;
 using System.Windows.Controls;
+using VeloxDev.Core.TimeLine;
 
 namespace Auris_Studio.Views
 {
+    [MonoBehaviour]
     public partial class PianoSlidingDoorView : UserControl
     {
         public PianoSlidingDoorView()
         {
             InitializeComponent();
+            MonoBehaviourManager.RegisterBehaviour(this);
+            DataContextChanged += PianoSlidingDoorView_DataContextChanged;
+        }
+
+        private void PianoSlidingDoorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.NewValue is MidiEditorViewModel)
+            {
+                HorizontalScrollBar.SetValueSafely(value: 0);
+                VerticalScrollBar.SetValueSafely(value: 0);
+            }
+        }
+
+        partial void Update(FrameEventArgs e)
+        {
+            Application.Current?.Dispatcher?.Invoke(() =>
+            {
+                if (DataContext is MidiEditorViewModel vm && vm.IsPlaying)
+                {
+                    double playheadPixelPosition = vm.NowTime * vm.WidthPerTick;
+                    double targetOffset = playheadPixelPosition - (vm.ViewportWidth * 0.382);
+                    double maxScrollableOffset = Math.Max(0d, vm.CanvasWidth - vm.ViewportWidth);
+                    double clampedOffset = Math.Max(0, Math.Min(targetOffset, maxScrollableOffset));
+                    HorizontalScrollBar.SetValueSafely(offset: clampedOffset, updateViewport: true);
+                }
+            });
         }
 
         private void VerticalScrollBar_OffsetChanged(object? sender, double e)
@@ -127,6 +155,14 @@ namespace Auris_Studio.Views
             if (DataContext is MidiEditorViewModel vm)
             {
                 vm.WidthPerQuarterNote = Math.Clamp(vm.WidthPerQuarterNote - 10, 20, double.MaxValue);
+            }
+        }
+
+        private void HorizontalScrollBar_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.StopCommand.Execute(null);
             }
         }
     }
