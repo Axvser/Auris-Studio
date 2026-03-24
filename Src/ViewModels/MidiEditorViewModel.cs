@@ -1016,51 +1016,74 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         if (NowTime >= MaxTime) NowTime = 0;
 
-        // 创建用于取消独立线程的CancellationTokenSource
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        // 使用ManualResetEventSlim同步线程状态
         using var playbackCompleted = new ManualResetEventSlim(false);
         var playbackException = (Exception?)null;
 
-        // 在线程中运行播放逻辑
         await Task.Run(async () =>
         {
             using var midiOut = new MidiOut(0);
-            var playbackStopwatch = Stopwatch.StartNew();
-            long playbackStartTick = NowTime;
 
             try
             {
+                // 1. 设置UI状态
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     IsEnabled = false;
                     IsPlaying = true;
                 });
 
-                while (!cts.IsCancellationRequested && NowTime < MaxTime)
+                // 2. 关键优化：在计时开始前完成所有初始化
+                long initialTick = NowTime;
+                foreach (var track in Tracks)
                 {
-                    long currentLogicalTick = NowTime;
+                    if (track.Muted) continue;
+                    track.ExecuteMidiCommand.Execute(Tuple.Create(initialTick, midiOut));
+                }
 
-                    foreach (var track in Tracks)
-                    {
-                        if (track.Muted) continue;
-                        track.ExecuteMidiCommand.Execute(Tuple.Create(currentLogicalTick, midiOut));
-                    }
+                // 3. 立即启动高精度计时器
+                var playbackStopwatch = Stopwatch.StartNew();
+                long playbackStartTick = initialTick;
 
-                    long nextLogicalTick = currentLogicalTick + 1;
+                // 4. 进入主播放循环，严格保持1-tick步进
+                long currentLogicalTick = initialTick;
+
+                while (!cts.IsCancellationRequested && currentLogicalTick < MaxTime)
+                {
+                    long nextLogicalTick = currentLogicalTick + 1; // 严格每次前进1个tick
+
+                    // 计算目标时间和已用时间
                     double targetPhysicalTimeMs = (nextLogicalTick - playbackStartTick) * TickTime;
                     double elapsedPhysicalTimeMs = playbackStopwatch.Elapsed.TotalMilliseconds;
                     double waitTimeMs = targetPhysicalTimeMs - elapsedPhysicalTimeMs;
 
-                    if (waitTimeMs > 0)
+                    // 5. 改进的等待策略：平滑处理微小偏差
+                    if (waitTimeMs > 1.0) // 需要等待超过1ms
                     {
+                        // 正常等待
                         await MicrosecondDelay.Delay(waitTimeMs * 1000.0, cts.Token);
                     }
+                    else if (waitTimeMs > 0)
+                    {
+                        // 1ms以内的等待，使用更高精度的短延迟
+                        await MicrosecondDelay.WindowsHighPrecision.Delay(
+                            (int)(waitTimeMs * 1000), cts.Token);
+                    }
 
+                    // 6. 更新UI状态
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         NowTime = nextLogicalTick;
                     });
+
+                    // 7. 发送当前tick的MIDI事件
+                    foreach (var track in Tracks)
+                    {
+                        if (track.Muted) continue;
+                        track.ExecuteMidiCommand.Execute(Tuple.Create(nextLogicalTick, midiOut));
+                    }
+
+                    currentLogicalTick = nextLogicalTick;
                 }
             }
             catch (OperationCanceledException)
@@ -1073,11 +1096,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
             }
             finally
             {
+                // 发送所有音符关闭消息
                 foreach (var track in Tracks)
                 {
                     midiOut.Send(new ControlChangeEvent(0, track.Channel, MidiController.AllNotesOff, 0).GetAsShortMessage());
                 }
-                playbackStopwatch.Stop();
                 playbackCompleted.Set();
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
@@ -1089,18 +1112,15 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
         try
         {
-            // 等待播放完成或取消
             await Task.Run(() => playbackCompleted.Wait(cts.Token), cts.Token);
 
-            // 如果有异常则重新抛出
             if (playbackException != null)
             {
-                throw new Exception("Playback thread failed", playbackException);
+                Debug.WriteLine(playbackException.Message);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // 外部取消请求
             cts.Cancel();
             throw;
         }
