@@ -3,6 +3,7 @@ using Auris_Studio.ViewModels.ComponentModel;
 using Auris_Studio.ViewModels.MidiEvents;
 using NAudio.Midi;
 using System.Collections.Specialized;
+using System.Text;
 using VeloxDev.Core.MVVM;
 
 namespace Auris_Studio.ViewModels;
@@ -11,7 +12,7 @@ public partial class MidiTrackViewModel
 {
     [VeloxProperty] private MidiEditorViewModel? _parent = null;
 
-    [VeloxProperty] private string _name = string.Empty; // 音轨名称
+    [VeloxProperty] private string _name = "Acoustic Grand Piano"; // 音轨名称
     [VeloxProperty] private int _channel = 1; // MIDI通道
     [VeloxProperty] private Patch _patch = Patch.AcousticGrandPiano; // 轨道音色
 
@@ -28,9 +29,7 @@ public partial class MidiTrackViewModel
     [VeloxProperty] private TimeOrderableCollection<ControlChangeEventViewModel> _expressions = []; // 表情/动态音量
     [VeloxProperty] private TimeOrderableCollection<ControlChangeEventViewModel> _modulations = []; // 调制轮
 
-    [VeloxProperty] private bool _solo = false; // 是否独奏
     [VeloxProperty] private bool _muted = false; // 是否被静音
-    [VeloxProperty] private bool _separated = false; // 是否音色分离
     [VeloxProperty] private bool _selected = false; // 是否被选中
 
     public MidiTrackViewModel()
@@ -56,6 +55,28 @@ public partial class MidiTrackViewModel
         _sustains.CollectionChanged += OnControlChangeEventsChanged;
         _expressions.CollectionChanged += OnControlChangeEventsChanged;
         _modulations.CollectionChanged += OnControlChangeEventsChanged;
+    }
+
+    partial void OnPatchChanged(Patch oldValue, Patch newValue)
+    {
+        string enumString = newValue.ToString();
+        if (string.IsNullOrEmpty(enumString))
+        {
+            Name = string.Empty;
+            return;
+        }
+
+        var result = new StringBuilder();
+        for (int i = 0; i < enumString.Length; i++)
+        {
+            char currentChar = enumString[i];
+            if (i > 0 && char.IsUpper(currentChar))
+            {
+                result.Append(' ');
+            }
+            result.Append(currentChar);
+        }
+        Name = result.ToString();
     }
 
     [VeloxCommand]
@@ -88,42 +109,22 @@ public partial class MidiTrackViewModel
     #region 音轨功能开关
 
     [VeloxCommand]
-    private void TrackSolo() => Solo = !Solo;
-    [VeloxCommand]
     private void TrackMuted() => Muted = !Muted;
     [VeloxCommand]
-    private void TrackSeparated() => Separated = !Separated;
-    [VeloxCommand]
-    private void TrackSelect() => Selected = true;
-
-    partial void OnSoloChanged(bool oldValue, bool newValue)
+    private void TrackSelect()
     {
-        if (Parent is null) return;
-
-        if (newValue)
+        if (Parent is not null)
         {
-            Parent.CurrentSelectedTrack = this;
-        }
-        else
-        {
-            if (Parent.CurrentSoloTrack == this)
+            if (Parent.CurrentSelectedTrack == this)
             {
-                Parent.CurrentSoloTrack = null;
+                Selected = true;
             }
-        }
-    }
-
-    partial void OnSelectedChanged(bool oldValue, bool newValue)
-    {
-        if (Parent is not null && Parent.CurrentSelectedTrack != this)
-        {
-            Parent.CurrentSelectedTrack?.Selected = false;
-            Parent.CurrentSelectedTrack = this;
-        }
-
-        foreach (var note in _notes.VisibleItems)
-        {
-            note.IsHighlighted = newValue;
+            else
+            {
+                Parent.CurrentSelectedTrack?.Selected = false;
+                Parent.CurrentSelectedTrack = this;
+                Selected = true;
+            }
         }
     }
 

@@ -6,11 +6,16 @@ namespace Auris_Studio.ViewModels.MidiEvents;
 
 public partial class NoteEventViewModel : EventViewModel
 {
+    public NoteEventViewModel()
+    {
+        IsEnabled = true;
+    }
+
     [VeloxProperty] private Pitch _note = Pitch.Error; // 音高
     [VeloxProperty] private int _onVelocity = 127; // 开始力度
     [VeloxProperty] private int _offVelocity = 0; // 结束力度
 
-    [VeloxProperty] public partial bool IsHighlighted { get; internal set; } // 是否高亮
+    [VeloxProperty] public partial bool IsEnabled { get; internal set; } // 是否可交互
     [VeloxProperty] public partial double Left { get; internal set; } // 距离画布左边界
     [VeloxProperty] public partial double Bottom { get; internal set; } // 距离画布下边界
     [VeloxProperty] public partial double Width { get; internal set; } // 宽度

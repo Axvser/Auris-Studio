@@ -14,7 +14,7 @@
              x:Name="Root">
     <UserControl.Resources>
         <DataTemplate x:Key="NoteTemplate" DataType="midivm:NoteEventViewModel">
-            <local:NoteView Width="{Binding Width}" 
+            <local:NoteView Width="{Binding Width}"
                             Height="{Binding Height}"
                             Canvas.Left="{Binding Left}"
                             Canvas.Bottom="{Binding Bottom}"/>
@@ -172,7 +172,8 @@
                                     MouseLeave="Canvas_MouseLeave"
                                     Background="#00FFFFFF"
                                     performance:ViewPool.Template="{StaticResource NoteTemplate}"
-                                    performance:ViewPool.DataContext="{Binding CurrentNotes}"/>
+                                    performance:ViewPool.DataContext="{Binding CurrentNotes}"
+                                    x:Name="NotesCanvas"/>
                         </ScrollViewer>
                     </Grid>
                     <Grid Grid.Column="0">

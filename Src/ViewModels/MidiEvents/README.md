@@ -114,16 +114,12 @@ MidiEvent (抽象基类)
 
 > 关于导入与导出，系统遵循下述流程
 
-> 同时，MIDI 文件流经优化管道后可能在大小上发生膨胀或缩减，这是正常的
-
 ```
 MIDI文件 (.mid)
     ↓
 MidiParser.Import() → origin MidiResult
     ↓
-MidiOptimizer.Optimize() → 数据优化管道
-    ↓
-MidiEditorViewModel.Read() → 视图模型层
+MidiEditorViewModel.Read() → 加载视图模型
     ↓
 UI绑定与用户编辑
     ↓

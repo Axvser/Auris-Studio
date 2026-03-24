@@ -1,0 +1,59 @@
+﻿<UserControl x:Class="Auris_Studio.Views.TrackListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Auris_Studio.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800"
+             xmlns:vm="clr-namespace:Auris_Studio.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:MidiEditorViewModel,IsDesignTimeCreatable=True}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition />
+            <RowDefinition Height="40"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition  Width="15"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="1">
+                <local:ScrollBar Orientation="Vertical"
+                                 Maximum="10000"
+                                 ViewportSize="{Binding ElementName=TracksViewer,Path=ViewportHeight}"
+                                 x:Name="VerticalScrollBar"
+                                 OffsetChanged="VerticalScrollBar_OffsetChanged"/>
+            </Grid>
+
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <ScrollViewer Grid.Row="0"
+                              VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Hidden"
+                              x:Name="TracksViewer">
+                    <ItemsControl ItemsSource="{Binding Tracks}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel Orientation="Vertical"
+                                                        HorizontalAlignment="Stretch"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <local:TrackView />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <local:Button ButtonContent="+ Add Track" Grid.Row="1" Click="Button_Click"/>
+
+    </Grid>
+</UserControl>

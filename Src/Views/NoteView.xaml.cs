@@ -2,6 +2,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using VeloxDev.Core.DynamicTheme;
 using VeloxDev.WPF.PlatformAdapters;
 
@@ -13,7 +14,50 @@ namespace Auris_Studio.Views
         public NoteView()
         {
             InitializeComponent();
+            DataContextChanged += NoteView_DataContextChanged;
             InitializeTheme();
+        }
+
+        private void NoteView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.OldValue is NoteEventViewModel oldValue)
+            {
+                oldValue.PropertyChanged -= PropertyChanged;
+            }
+            if (e.NewValue is NoteEventViewModel newValue)
+            {
+                newValue.PropertyChanged += PropertyChanged;
+                if (newValue.IsEnabled)
+                {
+                    RestoreThemeValue<Dark>(nameof(Background));
+                    RestoreThemeValue<Light>(nameof(Background));
+                }
+                else
+                {
+                    SetThemeValue<Dark>(nameof(Background), Brushes.Gray);
+                    SetThemeValue<Light>(nameof(Background), Brushes.Gray);
+                }
+            }
+        }
+
+        private void PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (sender is NoteEventViewModel vm)
+            {
+                if (e.PropertyName == nameof(IsEnabled))
+                {
+                    if (vm.IsEnabled)
+                    {
+                        RestoreThemeValue<Dark>(nameof(Background));
+                        RestoreThemeValue<Light>(nameof(Background));
+                    }
+                    else
+                    {
+                        SetThemeValue<Dark>(nameof(Background), Brushes.Gray);
+                        SetThemeValue<Light>(nameof(Background), Brushes.Gray);
+                    }
+                }
+            }
         }
 
         private void LeftArea_MouseDown(object sender, MouseButtonEventArgs e)

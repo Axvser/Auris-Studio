@@ -12,12 +12,29 @@ namespace Auris_Studio.Views
         {
             InitializeComponent();
             MonoBehaviourManager.RegisterBehaviour(this);
+            Application.Current.MainWindow.StateChanged += MainWindow_StateChanged;
             DataContextChanged += PianoSlidingDoorView_DataContextChanged;
+        }
+
+        ~PianoSlidingDoorView()
+        {
+            Application.Current.MainWindow.StateChanged -= MainWindow_StateChanged;
+        }
+
+        private void MainWindow_StateChanged(object? sender, EventArgs e)
+        {
+            if (DataContext is MidiEditorViewModel vm)
+            {
+                vm.ViewportLeft = HorizontalScrollBar.Offset;
+                vm.ViewportTop = VerticalScrollBar.Offset;
+                vm.ViewportWidth = HorizontalScrollBar.ActualWidth;
+                vm.ViewportHeight = HorizontalScrollBar.ActualHeight;
+            }
         }
 
         private void PianoSlidingDoorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.NewValue is MidiEditorViewModel)
+            if (e.NewValue is MidiEditorViewModel vm)
             {
                 HorizontalScrollBar.SetValueSafely(value: 0);
                 VerticalScrollBar.SetValueSafely(value: 0);
@@ -28,7 +45,7 @@ namespace Auris_Studio.Views
         {
             Application.Current?.Dispatcher?.Invoke(() =>
             {
-                if (DataContext is MidiEditorViewModel vm && vm.IsPlaying)
+                if (DataContext is MidiEditorViewModel vm && vm.ProgressFollow && vm.IsPlaying)
                 {
                     double playheadPixelPosition = vm.NowTime * vm.WidthPerTick;
                     double targetOffset = playheadPixelPosition - (vm.ViewportWidth * 0.382);
@@ -162,8 +179,13 @@ namespace Auris_Studio.Views
         {
             if (DataContext is MidiEditorViewModel vm)
             {
-                vm.StopCommand.Execute(null);
+                if (vm.ProgressFollow && vm.IsPlaying) vm.StopCommand.Execute(null);
             }
+        }
+
+        private void NoteView_LayerChanged(object sender, EventArgs e)
+        {
+            NotesCanvas.InvalidateVisual();
         }
     }
 }

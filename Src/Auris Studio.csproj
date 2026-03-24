@@ -13,8 +13,8 @@
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.3.0" />
     <PackageReference Include="NetCore5.0.Microsoft.Expression.Drawing" Version="1.0.0" />
-    <PackageReference Include="VeloxDev.Core.Extension" Version="3.7.27" />
-    <PackageReference Include="VeloxDev.WPF" Version="3.7.27" />
+    <PackageReference Include="VeloxDev.Core.Extension" Version="3.7.29" />
+    <PackageReference Include="VeloxDev.WPF" Version="3.7.29" />
   </ItemGroup>
 
 </Project>

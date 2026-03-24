@@ -53,8 +53,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial int MajorMinor { get; internal set; } // 调号
     [VeloxProperty] public partial string Lyric { get; internal set; } // 歌词
     [VeloxProperty] public partial MidiTrackViewModel? CurrentSelectedTrack { get; internal set; } // 当前选中的音轨
-    [VeloxProperty] public partial MidiTrackViewModel? CurrentSoloTrack { get; internal set; } // 当前独奏的音轨
-    [VeloxProperty] public partial HashSet<MidiTrackViewModel> ActiveTracks { get; internal set; } // 当前发声的音轨
     [VeloxProperty] public partial TimeOrderableCollection<NoteEventViewModel> CurrentNotes { get; internal set; } // 当前可见的音符
 
     // [视图层] 计算属性
@@ -86,12 +84,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial int PointerNote { get; internal set; } // 鼠标所处音高
     [VeloxProperty] public partial int PointerOperation { get; internal set; } // 1 → AbsTime / 2 → DelTime / 3 → 整体移动
     [VeloxProperty] public partial bool IsPlaying { get; internal set; } // 是否正在播放
+    [VeloxProperty] public partial bool ProgressFollow { get; set; } // 进度跟随
     [VeloxProperty] public partial bool IsEnabled { get; internal set; } // 是否可交互
 
     public MidiEditorViewModel()
     {
         CurrentNotes = [];
-        ActiveTracks = [];
         VisualTracks = [];
         PianoKeysMap = [];
         PianoKeys = [];
@@ -243,6 +241,21 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
     }
 
+    partial void OnCurrentSelectedTrackChanged(MidiTrackViewModel? oldValue, MidiTrackViewModel? newValue)
+    {
+        foreach (var track in newValue is null ? [] : Tracks.Except([newValue]))
+        {
+            foreach (var note in track.Notes)
+            {
+                note.IsEnabled = false;
+            }
+        }
+        foreach (var note in newValue is null ? [] : newValue.Notes)
+        {
+            note.IsEnabled = true;
+        }
+    }
+
     #endregion
 
     #region 画布计算
@@ -256,13 +269,13 @@ public partial class MidiEditorViewModel : IMidiFormatable
         // 1. 使用空间索引进行高性能点查询
         var hitNote = NoteSpatialIndex.PointQuery(PointerLeft, NotesCanvasHeight - PointerTop);
 
-        if (hitNote != null)
+        if (hitNote != null && hitNote.IsEnabled)
         {
             return;
         }
         else
         {
-            // 3.1 没有命中任何音符
+            // 3.1 没有命中任何音符，或命中的音符不可交互
             CapturedNote = null;
             PointerOperation = 0;
 
@@ -855,6 +868,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 {
                     foreach (MidiTrackViewModel track in e.NewItems)
                     {
+                        if (CurrentSelectedTrack is null)
+                        {
+                            CurrentSelectedTrack = track;
+                            track.Selected = true;
+                        }
+
                         track.Parent = this;
                         track.Notes.PropertyChanged += OnTrackMaxTimeChanged;
                         track.Notes.VisibleItems.CollectionChanged += OnNoteCollectionChanged;
@@ -863,6 +882,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         {
                             CurrentNotes.Add(note);
                             NoteSpatialIndex.Insert(note);
+                            note.IsEnabled = CurrentSelectedTrack == track;
                         }
                         UpdateCurrentNotes();
                     }
@@ -874,6 +894,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 {
                     foreach (MidiTrackViewModel track in e.OldItems)
                     {
+                        if (CurrentSelectedTrack == track)
+                        {
+                            CurrentSelectedTrack = null;
+                            track.Selected = false;
+                        }
+
                         track.Parent = null;
                         track.Notes.PropertyChanged -= OnTrackMaxTimeChanged;
                         track.Notes.VisibleItems.CollectionChanged -= OnNoteCollectionChanged;
@@ -1073,7 +1099,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     // 6. 更新UI状态
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        NowTime = nextLogicalTick;
+                        if (!cts.IsCancellationRequested) NowTime = nextLogicalTick;
                     });
 
                     // 7. 发送当前tick的MIDI事件
@@ -1137,11 +1163,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         await PlayCommand.LockAsync();
         await PlayCommand.ClearAsync();
+        await PlayCommand.UnLockAsync();
         if (parameter is double value)
         {
             NowTime = (long)(value / WidthPerTick);
         }
-        await PlayCommand.UnLockAsync();
     }
 
     #endregion
@@ -1164,6 +1190,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
         Lyrics.Clear();
         Markers.Clear();
         Cues.Clear();
+        CurrentSelectedTrack = null;
+
         PPQN = midiResult.deltaTicksPerQuarterNote;
 
         // 1. 读取全局事件
@@ -1356,7 +1384,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
             Tracks.Add(trackVm);
         }
 
-        Tracks.FirstOrDefault()?.TrackSelectCommand.Execute(null);
+        CurrentSelectedTrack ??= Tracks.FirstOrDefault();
 
         UpdateCurrentTempo(NowTime);
         UpdateCurrentTimeSignature(NowTime);
