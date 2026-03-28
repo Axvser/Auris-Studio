@@ -37,19 +37,29 @@
                 <ScrollViewer Grid.Row="0"
                               VerticalScrollBarVisibility="Hidden"
                               HorizontalScrollBarVisibility="Hidden"
+                              HorizontalContentAlignment="Stretch"
                               SizeChanged="TracksViewer_SizeChanged"
                               x:Name="TracksViewer"
-                              MouseWheel="TracksViewer_MouseWheel">
-                    <ItemsControl ItemsSource="{Binding Tracks}">
+                              PreviewMouseWheel="TracksViewer_MouseWheel">
+                    <ItemsControl ItemsSource="{Binding Tracks}"
+                                  Width="{Binding ElementName=TracksViewer, Path=ActualWidth}"
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Stretch">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <VirtualizingStackPanel Orientation="Vertical"
                                                         HorizontalAlignment="Stretch"/>
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemContainerStyle>
+                            <Style TargetType="ContentPresenter">
+                                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                            </Style>
+                        </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <local:TrackView Height="{Binding TrackHeight}"/>
+                                <local:TrackView Height="{Binding TrackHeight}"
+                                                 HorizontalAlignment="Stretch"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

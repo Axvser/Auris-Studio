@@ -37,6 +37,8 @@ public enum HorizontalMoveDirection
 
 public partial class MidiEditorViewModel : IMidiFormatable
 {
+    private bool _isSynchronizingTrackAudioState;
+
     // 分辨率
     [VeloxProperty] private int _pPQN = 480;
 
@@ -77,6 +79,9 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial MidiTrackViewModel? CurrentSelectedTrack { get; internal set; } // 当前选中的音轨
     [VeloxProperty] public partial TimeOrderableCollection<NoteEventViewModel> CurrentNotes { get; internal set; } // 当前可见的音符
 
+    [JsonIgnore]
+    public bool HasSoloTracks => Tracks.Any(track => track.Solo);
+
     // [视图层] 计算属性
     [VeloxProperty] public partial TimeSpan CurrentTimeSpan { get; internal set; } // 当前时分秒
     [VeloxProperty] public partial double CanvasWidth { get; internal set; } // [共享]画布宽度
@@ -90,8 +95,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial long ViewportEndTime { get; internal set; } // [可见区域]结束时间
     [VeloxProperty] public partial double WidthPerQuarterNote { get; internal set; } // 每四分音符长度
     [VeloxProperty] public partial double WidthPerTick { get; internal set; } // 每Tick长度
-    [JsonIgnore] public double TrackListCanvasHeight { get; internal set; } // [音轨列表]内容高度
-    [JsonIgnore] public double TrackListViewportHeight { get; internal set; } // [音轨列表]视口高度
+    [VeloxProperty] public partial double TrackListCanvasHeight { get; internal set; } // [音轨列表]内容高度
+    [VeloxProperty] public partial double TrackListViewportHeight { get; internal set; } // [音轨列表]视口高度
     // 卷帘门绘制
     [VeloxProperty] public partial double HeightPerLine { get; internal set; } // 每行高度
     [VeloxProperty] public partial double BlackNoteHeight { get; internal set; } // 黑键高度（53个=10*5+3）
@@ -144,8 +149,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
         TrackListCanvasHeight = 0;
         TrackListViewportHeight = 0;
         ControlCanvasHeight = 100;
-        UseSnap = true;
-        DragBehavior = NoteDragBehavior.VerticalPriority;
+        UseSnap = false;
+        DragBehavior = NoteDragBehavior.Free;
         IsEnabled = true;
 
         Tracks.CollectionChanged += OnTracksChanged;
@@ -322,6 +327,100 @@ public partial class MidiEditorViewModel : IMidiFormatable
         {
             note.IsEnabled = true;
         }
+    }
+
+    internal bool IsTrackAudible(MidiTrackViewModel track) => !track.Muted && (!HasSoloTracks || track.Solo);
+
+    internal void HandleTrackSoloStateChanged(MidiTrackViewModel changedTrack)
+    {
+        SynchronizeTrackAudioState(changedTrack.Solo ? changedTrack : null, changedTrack.Solo);
+    }
+
+    internal void SetTrackSoloState(MidiTrackViewModel targetTrack, bool isSoloEnabled)
+    {
+        SynchronizeTrackAudioState(isSoloEnabled ? targetTrack : null, isSoloEnabled, clearAllSoloTracks: !isSoloEnabled, restoreMutedTracksWhenClearingSolo: true);
+    }
+
+    internal void ClearSoloState(bool restoreMutedTracks = true)
+    {
+        SynchronizeTrackAudioState(clearAllSoloTracks: true, restoreMutedTracksWhenClearingSolo: restoreMutedTracks);
+    }
+
+    internal void NotifyTrackSoloStateChanged()
+    {
+        OnPropertyChanged(nameof(HasSoloTracks));
+        foreach (var track in Tracks)
+        {
+            track.NotifyAudibilityChanged();
+        }
+    }
+
+    private void SynchronizeTrackAudioState(MidiTrackViewModel? preferredSoloTrack = null, bool treatPreferredTrackAsSolo = false, bool clearAllSoloTracks = false, bool restoreMutedTracksWhenClearingSolo = true)
+    {
+        if (_isSynchronizingTrackAudioState)
+        {
+            return;
+        }
+
+        _isSynchronizingTrackAudioState = true;
+        try
+        {
+            MidiTrackViewModel? activeSoloTrack = null;
+            if (!clearAllSoloTracks)
+            {
+                if (treatPreferredTrackAsSolo && preferredSoloTrack is not null)
+                {
+                    activeSoloTrack = preferredSoloTrack;
+                }
+                else if (preferredSoloTrack?.Solo == true)
+                {
+                    activeSoloTrack = preferredSoloTrack;
+                }
+                else
+                {
+                    activeSoloTrack = Tracks.LastOrDefault(track => track.Solo);
+                }
+            }
+
+            if (activeSoloTrack is null)
+            {
+                foreach (var track in Tracks)
+                {
+                    if (track.Solo)
+                    {
+                        track.Solo = false;
+                    }
+
+                    if (restoreMutedTracksWhenClearingSolo && track.Muted)
+                    {
+                        track.Muted = false;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var track in Tracks)
+                {
+                    bool isActiveSoloTrack = ReferenceEquals(track, activeSoloTrack);
+                    if (track.Solo != isActiveSoloTrack)
+                    {
+                        track.Solo = isActiveSoloTrack;
+                    }
+
+                    bool shouldBeMuted = !isActiveSoloTrack;
+                    if (track.Muted != shouldBeMuted)
+                    {
+                        track.Muted = shouldBeMuted;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _isSynchronizingTrackAudioState = false;
+        }
+
+        NotifyTrackSoloStateChanged();
     }
 
     #endregion
@@ -1172,6 +1271,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
                         track.Parent = this;
                         track.PropertyChanged += OnTrackLayoutPropertyChanged;
+                        track.PropertyChanged += OnTrackSoundStatePropertyChanged;
                         track.Notes.PropertyChanged += OnTrackMaxTimeChanged;
                         track.Notes.VisibleItems.CollectionChanged += OnNoteCollectionChanged;
                         UpdateMaxTime();
@@ -1184,6 +1284,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         UpdateTrackListLayout();
                         UpdateCurrentNotes();
                     }
+                    SynchronizeTrackAudioState();
                 }
                 break;
 
@@ -1200,6 +1301,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
                         track.Parent = null;
                         track.PropertyChanged -= OnTrackLayoutPropertyChanged;
+                        track.PropertyChanged -= OnTrackSoundStatePropertyChanged;
                         track.Notes.PropertyChanged -= OnTrackMaxTimeChanged;
                         track.Notes.VisibleItems.CollectionChanged -= OnNoteCollectionChanged;
                         track.RestoreCommand.Execute(null);
@@ -1210,8 +1312,31 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         }
                         UpdateTrackListLayout();
                     }
+                    SynchronizeTrackAudioState();
                 }
                 break;
+        }
+    }
+
+    private void OnTrackSoundStatePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_isSynchronizingTrackAudioState || sender is not MidiTrackViewModel track)
+        {
+            return;
+        }
+
+        if (e.PropertyName == nameof(MidiTrackViewModel.Solo))
+        {
+            HandleTrackSoloStateChanged(track);
+            return;
+        }
+
+        if (e.PropertyName == nameof(MidiTrackViewModel.Muted)
+            && HasSoloTracks
+            && !track.Solo
+            && !track.Muted)
+        {
+            ClearSoloState(restoreMutedTracks: false);
         }
     }
 
@@ -1373,7 +1498,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 long initialTick = NowTime;
                 foreach (var track in Tracks)
                 {
-                    if (track.Muted) continue;
+                    if (!IsTrackAudible(track)) continue;
                     track.ExecuteMidiCommand.Execute(Tuple.Create(initialTick, midiOut));
                 }
 
@@ -1415,7 +1540,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     // 7. 发送当前tick的MIDI事件
                     foreach (var track in Tracks)
                     {
-                        if (track.Muted) continue;
+                        if (!IsTrackAudible(track)) continue;
                         track.ExecuteMidiCommand.Execute(Tuple.Create(nextLogicalTick, midiOut));
                     }
 

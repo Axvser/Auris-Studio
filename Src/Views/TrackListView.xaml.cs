@@ -34,6 +34,8 @@ namespace Auris_Studio.Views
                 _currentVm.Tracks.CollectionChanged += Tracks_CollectionChanged;
                 RefreshScrollMetrics();
             }
+
+            VerticalScrollBar.SetValueSafely(value: 0);
         }
 
         private void Tracks_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

@@ -21,8 +21,11 @@ namespace Auris_Studio.Views
     [ThemeConfig<ObjectConverter, Dark, Light>(nameof(PopupBackground), ["#111318"], ["#F7F8FB"])]
     public partial class TrackView : UserControl
     {
-        private const string MuteOffIcon = "M96 352H32c-17.7 0-32 14.3-32 32v256c0 17.7 14.3 32 32 32h64l160 128V224L96 352zm264.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 516.7v-9.4c0-35.7 20.2-68.3 52.1-84.3 15.5-7.8 21.8-26.6 14-42.1s-26.6-21.8-42.1-14C226.8 393.5 192 447.4 192 507.3V576l-59.3-59.3c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128zm257.9-246.1c-14.2-10.6-34.3-7.7-44.8 6.5s-7.7 34.3 6.5 44.8C631 345.4 672 417.8 672 496s-41 150.6-91.8 194.2c-14.2 10.6-17.1 30.7-6.5 44.8 10.6 14.2 30.7 17.1 44.8 6.5C683.4 687.6 736 594.5 736 496s-52.6-191.6-117.5-239.5z";
-        private const string MuteOnIcon = "M96 352H32c-17.7 0-32 14.3-32 32v256c0 17.7 14.3 32 32 32h64l160 128V224L96 352zm626.7-53.3c-12.5-12.5-32.8-12.5-45.3 0L544 432 410.7 298.7c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L498.7 477.3 365.4 610.7c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L544 522.7 677.3 656c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L589.3 477.3 722.7 344c12.5-12.5 12.5-32.8 0-45.3z";
+        private const string MuteOffIcon = "M128 420.576v200.864h149.12l175.456 140.064V284.288l-169.792 136.288H128z m132.256-64l204.288-163.968a32 32 0 0 1 52.032 24.96v610.432a32 32 0 0 1-51.968 24.992l-209.92-167.552H96a32 32 0 0 1-32-32v-264.864a32 32 0 0 1 32-32h164.256zM752 458.656L870.4 300.8a32 32 0 1 1 51.2 38.4L792 512l129.6 172.8a32 32 0 0 1-51.2 38.4l-118.4-157.856-118.4 157.856a32 32 0 0 1-51.2-38.4l129.6-172.8-129.6-172.8a32 32 0 0 1 51.2-38.4l118.4 157.856z";
+        private const string MuteOnIcon = "M257.493333 322.4l215.573334-133.056c24.981333-15.413333 57.877333-7.914667 73.493333 16.746667 5.301333 8.373333 8.106667 18.048 8.106667 27.914666v555.989334C554.666667 819.093333 530.784 842.666667 501.333333 842.666667c-9.994667 0-19.786667-2.773333-28.266666-8L257.493333 701.6H160c-41.237333 0-74.666667-33.013333-74.666667-73.738667V396.138667c0-40.725333 33.429333-73.738667 74.666667-73.738667h97.493333z m26.133334 58.4a32.298667 32.298667 0 0 1-16.96 4.8H160c-5.888 0-10.666667 4.714667-10.666667 10.538667v231.733333c0 5.813333 4.778667 10.538667 10.666667 10.538667h106.666667c5.994667 0 11.872 1.664 16.96 4.8L490.666667 770.986667V253.013333L283.626667 380.8zM800.906667 829.653333a32.288 32.288 0 0 1-45.248-0.757333 31.317333 31.317333 0 0 1 0.768-44.693333c157.653333-150.464 157.653333-393.962667 0-544.426667a31.317333 31.317333 0 0 1-0.768-44.682667 32.288 32.288 0 0 1 45.248-0.757333c183.68 175.306667 183.68 460.010667 0 635.317333z m-106.901334-126.186666a32.288 32.288 0 0 1-45.248-1.216 31.328 31.328 0 0 1 1.237334-44.672c86.229333-80.608 86.229333-210.56 0-291.178667a31.328 31.328 0 0 1-1.237334-44.672 32.288 32.288 0 0 1 45.248-1.216c112.885333 105.546667 112.885333 277.418667 0 382.965333z";
+        private static readonly Thickness SoloInactiveBorderThickness = new(0);
+        private static readonly Thickness SoloActiveBorderThickness = new(1.5);
+
         private bool _isHovered;
 
         public TrackView()
@@ -72,6 +75,7 @@ namespace Auris_Studio.Views
         {
             if (newValue is not null && DataContext is MidiTrackViewModel track)
             {
+                RefreshButtonContent(track);
                 UpdateVisualState(track);
             }
         }
@@ -97,12 +101,18 @@ namespace Auris_Studio.Views
                 return;
             }
 
-            if (e.PropertyName is nameof(MidiTrackViewModel.Selected) or nameof(MidiTrackViewModel.Muted))
+            if (e.PropertyName is nameof(MidiTrackViewModel.Selected)
+                or nameof(MidiTrackViewModel.Muted)
+                or nameof(MidiTrackViewModel.Solo)
+                or nameof(MidiTrackViewModel.IsAudible))
             {
                 UpdateVisualState(track);
             }
 
-            if (e.PropertyName is nameof(MidiTrackViewModel.Channel) or nameof(MidiTrackViewModel.Patch))
+            if (e.PropertyName is nameof(MidiTrackViewModel.Channel)
+                or nameof(MidiTrackViewModel.Patch)
+                or nameof(MidiTrackViewModel.Muted)
+                or nameof(MidiTrackViewModel.Solo))
             {
                 if (e.PropertyName == nameof(MidiTrackViewModel.Channel))
                 {
@@ -129,7 +139,13 @@ namespace Auris_Studio.Views
             }
             if (FindMuteButton() is Button muteButton)
             {
-                muteButton.ButtonContent = track.Muted ? MuteOnIcon : MuteOffIcon;
+                muteButton.ButtonContent = track.Muted ? MuteOffIcon : MuteOnIcon;
+            }
+            if (FindSoloButton() is Button soloButton)
+            {
+                soloButton.ButtonContent = "S";
+                soloButton.BorderThickness = track.Solo ? SoloActiveBorderThickness : SoloInactiveBorderThickness;
+                soloButton.BorderBrush = track.Solo ? Foreground : Brushes.Transparent;
             }
         }
 
@@ -153,7 +169,7 @@ namespace Auris_Studio.Views
                 ExecuteNormalTransition(cardBorder);
             }
 
-            Opacity = track.Muted ? 0.68 : 1.0;
+            Opacity = track.IsAudible ? 1.0 : 0.68;
         }
 
         private static void ExecuteSelectedTransition(Border border)
@@ -229,6 +245,11 @@ namespace Auris_Studio.Views
 
         private void CardBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (ShouldIgnoreTrackSelection(e.OriginalSource as DependencyObject))
+            {
+                return;
+            }
+
             if (DataContext is MidiTrackViewModel vm)
             {
                 vm.TrackSelectCommand.Execute(null);
@@ -300,12 +321,51 @@ namespace Auris_Studio.Views
             if (DataContext is MidiTrackViewModel vm)
             {
                 vm.TrackMutedCommand.Execute(null);
+                RefreshButtonContent(vm);
+                e.Handled = true;
                 UpdateVisualState(vm);
             }
         }
 
+        private void Solo_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MidiTrackViewModel vm)
+            {
+                vm.TrackSoloCommand.Execute(null);
+                RefreshButtonContent(vm);
+                e.Handled = true;
+                UpdateVisualState(vm);
+            }
+        }
+
+        private static bool ShouldIgnoreTrackSelection(DependencyObject? originalSource)
+            => FindAncestor<Button>(originalSource) is not null
+            || FindAncestor<TextBox>(originalSource) is not null
+            || FindAncestor<ToolbarMenuItem>(originalSource) is not null;
+
+        private static T? FindAncestor<T>(DependencyObject? current) where T : DependencyObject
+        {
+            while (current is not null)
+            {
+                if (current is T ancestor)
+                {
+                    return ancestor;
+                }
+
+                current = current switch
+                {
+                    Visual visual => VisualTreeHelper.GetParent(visual),
+                    FrameworkContentElement contentElement => contentElement.Parent,
+                    _ => null,
+                };
+            }
+
+            return null;
+        }
+
         private Border? FindCardBorder() => FindName("CardBorder") as Border;
         private TextBox? FindNameTextBox() => FindName("NameTextBox") as TextBox;
+        private Button? FindSoloButton() => FindName("SoloButton") as Button;
         private Button? FindChannelButton() => FindName("ChannelButton") as Button;
         private Button? FindPatchButton() => FindName("PatchButton") as Button;
         private Button? FindMuteButton() => FindName("MuteButton") as Button;

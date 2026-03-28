@@ -41,10 +41,11 @@ public partial class MidiTrackViewModel
     [VeloxProperty] private TimeOrderableCollection<ControlChangeEventViewModel> _modulations = []; // 调制轮
 
     [VeloxProperty] private bool _muted = false; // 是否被静音
+    [VeloxProperty] private bool _solo = false; // 是否独奏
     [VeloxProperty] private bool _selected = false; // 是否被选中
     [JsonIgnore] public double HeaderHeight { get; internal set; } = 46;
     [JsonIgnore] public double EditorHeight { get; internal set; } = 96;
-    [JsonIgnore] public double TrackSpacing { get; internal set; } = 12;
+    [JsonIgnore] public double TrackSpacing { get; internal set; } = 36;
 
     [JsonIgnore]
     public double TrackHeight => HeaderHeight + EditorHeight + TrackSpacing;
@@ -71,6 +72,9 @@ public partial class MidiTrackViewModel
 
     [JsonIgnore]
     public string PatchDisplayName => GetPatchDisplayName(Patch);
+
+    [JsonIgnore]
+    public bool IsAudible => Parent?.IsTrackAudible(this) ?? !Muted;
 
     public bool IsSynchronizingControlCollections { get; internal set; }
 
@@ -111,6 +115,26 @@ public partial class MidiTrackViewModel
         Patch = NormalizePatchForChannel(newValue, Patch);
     }
 
+    partial void OnParentChanged(MidiEditorViewModel? oldValue, MidiEditorViewModel? newValue)
+    {
+        OnPropertyChanged(nameof(IsAudible));
+    }
+
+    partial void OnMutedChanged(bool oldValue, bool newValue)
+    {
+        OnPropertyChanged(nameof(IsAudible));
+    }
+
+    partial void OnSoloChanged(bool oldValue, bool newValue)
+    {
+        if (newValue && Muted)
+        {
+            Muted = false;
+        }
+
+        OnPropertyChanged(nameof(IsAudible));
+    }
+
     [VeloxCommand]
     private void ExecuteMidi(object? parameter)
     {
@@ -143,6 +167,23 @@ public partial class MidiTrackViewModel
 
     [VeloxCommand]
     private void TrackMuted() => Muted = !Muted;
+
+    [VeloxCommand]
+    private void TrackSolo()
+    {
+        if (Parent is not null)
+        {
+            Parent.SetTrackSoloState(this, !Solo);
+            return;
+        }
+
+        Solo = !Solo;
+        if (Solo)
+        {
+            Muted = false;
+        }
+    }
+
     [VeloxCommand]
     private void TrackSelect()
     {
@@ -162,6 +203,8 @@ public partial class MidiTrackViewModel
     }
 
     #endregion
+
+    internal void NotifyAudibilityChanged() => OnPropertyChanged(nameof(IsAudible));
 
     #region 集合处理
 
