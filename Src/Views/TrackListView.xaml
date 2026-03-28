@@ -11,6 +11,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition />
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="40"/>
         </Grid.RowDefinitions>
 
@@ -22,8 +23,9 @@
 
             <Grid Grid.Column="1">
                 <local:ScrollBar Orientation="Vertical"
-                                 Maximum="10000"
-                                 ViewportSize="{Binding ElementName=TracksViewer,Path=ViewportHeight}"
+                                 Minimum="0"
+                                 Maximum="{Binding TrackListCanvasHeight}"
+                                 ViewportSize="{Binding TrackListViewportHeight}"
                                  x:Name="VerticalScrollBar"
                                  OffsetChanged="VerticalScrollBar_OffsetChanged"/>
             </Grid>
@@ -35,7 +37,9 @@
                 <ScrollViewer Grid.Row="0"
                               VerticalScrollBarVisibility="Hidden"
                               HorizontalScrollBarVisibility="Hidden"
-                              x:Name="TracksViewer">
+                              SizeChanged="TracksViewer_SizeChanged"
+                              x:Name="TracksViewer"
+                              MouseWheel="TracksViewer_MouseWheel">
                     <ItemsControl ItemsSource="{Binding Tracks}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -45,7 +49,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <local:TrackView />
+                                <local:TrackView Height="{Binding TrackHeight}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -53,7 +57,39 @@
             </Grid>
         </Grid>
 
-        <local:Button ButtonContent="+ Add Track" Grid.Row="1" Click="Button_Click"/>
+        <Border Grid.Row="1"
+                Margin="8,8,8,12"
+                Padding="8"
+                CornerRadius="20"
+                Background="{Binding ElementName=TracksViewer,Path=Background}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Visible"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CurrentSelectedTrack}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <StackPanel>
+                <TextBlock Text="{Binding CurrentSelectedTrack.Name, StringFormat=Mixer · {0}}"
+                           Margin="8,0,8,10"
+                           FontWeight="SemiBold"
+                           Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}"/>
+                <local:TrackParameterSlider Label="Volume"
+                                            Value="{Binding CurrentSelectedTrack.Volume, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            Minimum="0"
+                                            Maximum="127"/>
+                <local:TrackParameterSlider Margin="0,10,0,0"
+                                            Label="Pan"
+                                            Value="{Binding CurrentSelectedTrack.Pan, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            Minimum="0"
+                                            Maximum="127"/>
+            </StackPanel>
+        </Border>
+
+        <local:Button ButtonContent="+ Add Track" Grid.Row="2" Click="Button_Click"/>
 
     </Grid>
 </UserControl>

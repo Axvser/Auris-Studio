@@ -5,12 +5,146 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:Auris_Studio.Views"
              mc:Ignorable="d"
-             d:DesignHeight="450" d:DesignWidth="800"
+             d:DesignHeight="160" d:DesignWidth="280"
              xmlns:vm="clr-namespace:Auris_Studio.ViewModels"
              d:DataContext="{d:DesignInstance Type=vm:MidiTrackViewModel,IsDesignTimeCreatable=True}">
-    <Grid>
-        <Viewbox>
-            <TextBlock Text="{Binding Name}" Foreground="White"/>
-        </Viewbox>
-    </Grid>
+    <UserControl.Resources>
+        <Style x:Key="TrackFieldTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=FieldBackground}"/>
+            <Setter Property="Foreground" Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=Foreground}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="TrackFieldButtonStyle" TargetType="local:Button">
+            <Setter Property="Background" Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=FieldBackground}"/>
+            <Setter Property="Foreground" Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=Foreground}"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BlurRadius" Value="20"/>
+            <Setter Property="ContentMargin" Value="12,8,12,8"/>
+            <Setter Property="UseHoverForeground" Value="False"/>
+        </Style>
+    </UserControl.Resources>
+    <Border x:Name="CardBorder"
+            Margin="8,0,8,12"
+            Padding="10"
+            CornerRadius="20"
+            Background="Transparent"
+            MouseLeftButtonDown="CardBorder_MouseLeftButtonDown"
+            MouseEnter="CardBorder_MouseEnter"
+            MouseLeave="CardBorder_MouseLeave">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="10"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBox x:Name="NameTextBox"
+                         Grid.Column="0"
+                         Style="{StaticResource TrackFieldTextBoxStyle}"
+                         Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         FontWeight="SemiBold"/>
+                <local:Button Grid.Column="1"
+                              Margin="10,0,0,0"
+                              ButtonContent="M864 672c0 70.7-57.3 128-128 128-35.3 0-67.3-14.3-90.5-37.5L489 606.1C463.9 587.5 432.9 576 400 576H288c-17.7 0-32-14.3-32-32V480c0-17.7 14.3-32 32-32h112c32.9 0 63.9-11.5 89-30.1l156.5-156.4C668.7 238.3 700.7 224 736 224c70.7 0 128 57.3 128 128v320zM61.8 256H96c17.7 0 32 14.3 32 32V736c0 17.7-14.3 32-32 32H61.8C27.7 768 0 740.3 0 706.2V317.8C0 283.7 27.7 256 61.8 256zM1002.3 792.5c-15.6 15.6-40.9 15.6-56.6 0L864 710.8l-81.7 81.7c-15.6 15.6-40.9 15.6-56.6 0s-15.6-40.9 0-56.6l81.7-81.7-81.7-81.7c-15.6-15.6-15.6-40.9 0-56.6s40.9-15.6 56.6 0l81.7 81.7 81.7-81.7c15.6-15.6 40.9-15.6 56.6 0s15.6 40.9 0 56.6l-81.7 81.7 81.7 81.7c15.6 15.7 15.6 41 0 56.7z"
+                              Style="{StaticResource TrackFieldButtonStyle}"
+                              Width="42"
+                              Height="42"
+                              UseHoverBackground="False"
+                              Click="Mute_Click"/>
+            </Grid>
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0"
+                            VerticalAlignment="Top">
+                    <TextBlock x:Name="ChannelLabel"
+                               Text="Channel"
+                               Foreground="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=SecondaryForeground}"
+                               FontSize="11"/>
+                    <TextBlock x:Name="PatchLabel"
+                               Text="Patch"
+                               Foreground="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=SecondaryForeground}"
+                               FontSize="11"
+                               Margin="0,16,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1"
+                            Margin="12,0,0,0">
+                    <local:Button x:Name="ChannelButton"
+                                  Style="{StaticResource TrackFieldButtonStyle}"
+                                  HorizontalAlignment="Stretch"
+                                  Click="ChannelButton_Click"/>
+                    <local:Button x:Name="PatchButton"
+                                  Style="{StaticResource TrackFieldButtonStyle}"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="0,10,0,0"
+                                  Click="PatchButton_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <Popup x:Name="ChannelPopup"
+                   PlacementTarget="{Binding ElementName=ChannelButton}"
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True"
+                   PopupAnimation="Fade">
+                <Border x:Name="ChannelPopupBorder"
+                        Margin="0,8,0,0"
+                        Padding="8"
+                        CornerRadius="20"
+                        Background="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=PopupBackground}"
+                        BorderThickness="0"
+                        Opacity="0.97">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="18"
+                                          ShadowDepth="0"
+                                          Opacity="0.25"/>
+                    </Border.Effect>
+                    <ScrollViewer MaxHeight="260"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="ChannelOptionsPanel"/>
+                    </ScrollViewer>
+                </Border>
+            </Popup>
+
+            <Popup x:Name="PatchPopup"
+                   PlacementTarget="{Binding ElementName=PatchButton}"
+                   Placement="Bottom"
+                   StaysOpen="False"
+                   AllowsTransparency="True"
+                   PopupAnimation="Fade">
+                <Border x:Name="PatchPopupBorder"
+                        Margin="0,8,0,0"
+                        Padding="8"
+                        CornerRadius="20"
+                        Background="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=PopupBackground}"
+                        BorderThickness="0"
+                        Opacity="0.97">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="18"
+                                          ShadowDepth="0"
+                                          Opacity="0.25"/>
+                    </Border.Effect>
+                    <ScrollViewer MaxHeight="300"
+                                  VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="PatchOptionsPanel"/>
+                    </ScrollViewer>
+                </Border>
+            </Popup>
+        </Grid>
+    </Border>
 </UserControl>

@@ -90,6 +90,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial long ViewportEndTime { get; internal set; } // [可见区域]结束时间
     [VeloxProperty] public partial double WidthPerQuarterNote { get; internal set; } // 每四分音符长度
     [VeloxProperty] public partial double WidthPerTick { get; internal set; } // 每Tick长度
+    [JsonIgnore] public double TrackListCanvasHeight { get; internal set; } // [音轨列表]内容高度
+    [JsonIgnore] public double TrackListViewportHeight { get; internal set; } // [音轨列表]视口高度
     // 卷帘门绘制
     [VeloxProperty] public partial double HeightPerLine { get; internal set; } // 每行高度
     [VeloxProperty] public partial double BlackNoteHeight { get; internal set; } // 黑键高度（53个=10*5+3）
@@ -116,6 +118,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial long DragPointerOffsetTicks { get; internal set; }
     [VeloxProperty] public partial double DragInitialPointerLeft { get; internal set; }
     [VeloxProperty] public partial double DragInitialPointerTop { get; internal set; }
+    [JsonIgnore] public int DragInitialPointerNote { get; internal set; }
     [VeloxProperty] public partial long LastDragPointerTick { get; internal set; }
     [VeloxProperty] public partial bool HasDragContext { get; internal set; }
     [VeloxProperty] public partial NoteMoveIntent CurrentMoveIntent { get; internal set; }
@@ -138,7 +141,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
         WidthPerQuarterNote = 40;
         HeightPerLine = 10;
         CanvasWidth = 0;
+        TrackListCanvasHeight = 0;
+        TrackListViewportHeight = 0;
         ControlCanvasHeight = 100;
+        UseSnap = true;
+        DragBehavior = NoteDragBehavior.VerticalPriority;
         IsEnabled = true;
 
         Tracks.CollectionChanged += OnTracksChanged;
@@ -157,6 +164,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         LoadVisualTracks();
         UpdatePianoKeys();
         UpdateVisualTracks();
+        UpdateTrackListLayout();
     }
 
     #region [Dispatcher] 属性回调
@@ -596,6 +604,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         DragPointerOffsetTicks = ConvertPointerLeftToTick(PointerLeft) - CapturedNote.AbsoluteTime;
         DragInitialPointerLeft = PointerLeft;
         DragInitialPointerTop = PointerTop;
+        DragInitialPointerNote = PointerNote;
         LastDragPointerTick = ConvertPointerLeftToTick(PointerLeft);
         HasDragContext = true;
     }
@@ -607,6 +616,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         DragPointerOffsetTicks = 0;
         DragInitialPointerLeft = 0;
         DragInitialPointerTop = 0;
+        DragInitialPointerNote = 0;
         LastDragPointerTick = 0;
         HasDragContext = false;
         CurrentMoveIntent = NoteMoveIntent.None;
@@ -642,6 +652,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
 
         if (CurrentMoveIntent == NoteMoveIntent.Vertical)
+        {
+            return true;
+        }
+
+        if (CapturedNote is not null && PointerNote != (int)CapturedNote.Note)
         {
             return true;
         }
@@ -755,7 +770,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
     private double GetHorizontalMoveDistanceInPixels() => Math.Abs(PointerLeft - DragInitialPointerLeft);
 
-    private double GetVerticalMoveDistanceInPixels() => Math.Abs(PointerTop - DragInitialPointerTop);
+    private double GetVerticalMoveDistanceInPixels()
+    {
+        double pointerDistance = Math.Abs(PointerTop - DragInitialPointerTop);
+        double noteDistance = Math.Abs(PointerNote - DragInitialPointerNote) * Math.Max(HeightPerLine * 0.9, 8.0);
+        return Math.Max(pointerDistance, noteDistance);
+    }
 
     private double GetHorizontalDeadZoneInPixels()
     {
@@ -986,6 +1006,11 @@ public partial class MidiEditorViewModel : IMidiFormatable
         UpdateCurrentNotes();
     }
 
+    internal void UpdateTrackListLayout()
+    {
+        TrackListCanvasHeight = Tracks.Sum(track => track.TrackHeight);
+    }
+
     private void UpdateCurrentNotes()
     {
         CurrentNotes.Virtualize(0, MaxTime);
@@ -1146,6 +1171,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         }
 
                         track.Parent = this;
+                        track.PropertyChanged += OnTrackLayoutPropertyChanged;
                         track.Notes.PropertyChanged += OnTrackMaxTimeChanged;
                         track.Notes.VisibleItems.CollectionChanged += OnNoteCollectionChanged;
                         UpdateMaxTime();
@@ -1155,6 +1181,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                             NoteSpatialIndex.Insert(note);
                             note.IsEnabled = CurrentSelectedTrack == track;
                         }
+                        UpdateTrackListLayout();
                         UpdateCurrentNotes();
                     }
                 }
@@ -1172,6 +1199,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                         }
 
                         track.Parent = null;
+                        track.PropertyChanged -= OnTrackLayoutPropertyChanged;
                         track.Notes.PropertyChanged -= OnTrackMaxTimeChanged;
                         track.Notes.VisibleItems.CollectionChanged -= OnNoteCollectionChanged;
                         track.RestoreCommand.Execute(null);
@@ -1180,6 +1208,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                             CurrentNotes.Remove(note);
                             NoteSpatialIndex.Remove(note);
                         }
+                        UpdateTrackListLayout();
                     }
                 }
                 break;
@@ -1246,6 +1275,16 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
         // 对于编辑器而言，最大时长可以只增不减，格式互转时会依据事件集合动态计算而不会用到MaxTime
         if (track.MaxTime > this.MaxTime) this.MaxTime = track.MaxTime;
+    }
+
+    private void OnTrackLayoutPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MidiTrackViewModel.HeaderHeight)
+            or nameof(MidiTrackViewModel.EditorHeight)
+            or nameof(MidiTrackViewModel.TrackSpacing))
+        {
+            UpdateTrackListLayout();
+        }
     }
 
     private void OnTextsChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -1577,7 +1616,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     }
                 }
             }
-            trackVm.Patch = lastPatch ?? Patch.AcousticGrandPiano;
+            trackVm.Patch = MidiTrackViewModel.NormalizePatchForChannel(channel, lastPatch ?? Patch.AcousticGrandPiano);
 
             // 读取通道触后事件
             ReadEventsFromDict(trackVm.Cats, midiResult.catEvs, channel, catEvent =>
@@ -1778,7 +1817,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
             track.RestoreCommand.Execute(null);
 
             // 写入音色事件
-            var patchEvent = new PatchChangeEvent(0, channel, (int)track.Patch);
+            track.Patch.IsDrum(out int programNumber);
+            var patchEvent = new PatchChangeEvent(0, channel, programNumber);
             AddEventToDict(midiResult.patchEvs, channel, track.Patch, patchEvent);
 
             // 写入通道触后事件

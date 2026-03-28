@@ -160,7 +160,7 @@ namespace Test
         public void SnapDisabled_ShouldBypassAlignmentAndUseTickLevelMinLength()
         {
             _viewModel.Alignment = Alignment.QuarterNote;
-            _viewModel.UseSnap = false;
+            ReflectionHelper.SetProperty(_viewModel, "UseSnap", false);
 
             Assert.AreEqual(123, _viewModel.AlignTimeForward(123), "关闭对齐后不应向前吸附");
             Assert.AreEqual(123, _viewModel.AlignTimeBackward(123), "关闭对齐后不应向后吸附");
@@ -238,7 +238,7 @@ namespace Test
         public void FreeDragMode_ShouldAllowHorizontalAndVerticalChangesTogether()
         {
             _viewModel.Alignment = Alignment.QuarterNote;
-            _viewModel.DragBehavior = NoteDragBehavior.Free;
+            ReflectionHelper.SetProperty(_viewModel, "DragBehavior", NoteDragBehavior.Free);
 
             var note = new NoteEventViewModel
             {

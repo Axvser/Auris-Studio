@@ -1,0 +1,97 @@
+<UserControl x:Class="Auris_Studio.Views.TrackParameterSlider"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Auris_Studio.Views"
+             mc:Ignorable="d"
+             d:DesignHeight="64" d:DesignWidth="320">
+    <UserControl.Resources>
+        <Style x:Key="InlineSliderStyle" TargetType="Slider">
+            <Setter Property="Foreground" Value="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Height="18">
+                            <Border Height="4"
+                                    CornerRadius="2"
+                                    VerticalAlignment="Center"
+                                    Background="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=TrackBrush}"/>
+                            <Track x:Name="PART_Track"
+                                   VerticalAlignment="Center">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Focusable="False"
+                                                  IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4"
+                                                        CornerRadius="2"
+                                                        Background="{TemplateBinding Foreground}"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Focusable="False"
+                                                  IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Height="4"
+                                                        CornerRadius="2"
+                                                        Background="Transparent"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="14"
+                                           Height="14"
+                                           Background="{TemplateBinding Foreground}">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        CornerRadius="7"/>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Border x:Name="CardBorder"
+            Background="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=CardBackground}"
+            CornerRadius="18"
+            Padding="14,10"
+            MouseEnter="CardBorder_MouseEnter"
+            MouseLeave="CardBorder_MouseLeave">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=Label}"
+                           Foreground="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=SecondaryForeground}"
+                           FontSize="12"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=Value, StringFormat=F0}"
+                           Foreground="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=Foreground}"
+                           FontWeight="SemiBold"/>
+            </Grid>
+            <Slider Grid.Row="1"
+                    Margin="0,10,0,0"
+                    Minimum="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=Minimum}"
+                    Maximum="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=Maximum}"
+                    Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackParameterSlider}, Path=Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    Style="{StaticResource InlineSliderStyle}"/>
+        </Grid>
+    </Border>
+</UserControl>
