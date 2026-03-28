@@ -1185,7 +1185,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
             }
         }
 
-        this.MaxTime = calculatedMaxTime;
+        long viewportDrivenMaxTime = ViewportEndTime > 0 ? ViewportEndTime + PPQN : 0;
+        this.MaxTime = Math.Max(calculatedMaxTime, Math.Max(MaxTime, viewportDrivenMaxTime));
     }
 
     private void UpdateTickTime() => TickTime = (60000.0d / BPM) / PPQN;

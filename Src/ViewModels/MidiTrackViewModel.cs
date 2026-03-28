@@ -13,13 +13,9 @@ namespace Auris_Studio.ViewModels;
 
 public partial class MidiTrackViewModel
 {
-    private static readonly Patch[] melodicPatches = Enum.GetValues<Patch>()
-        .Where(patch => !patch.IsDrum(out _))
-        .ToArray();
+    private static readonly Patch[] melodicPatches = [.. Enum.GetValues<Patch>().Where(patch => !patch.IsDrum(out _))];
 
-    private static readonly Patch[] drumPatches = Enum.GetValues<Patch>()
-        .Where(patch => patch.IsDrum(out _))
-        .ToArray();
+    private static readonly Patch[] drumPatches = [.. Enum.GetValues<Patch>().Where(patch => patch.IsDrum(out _))];
 
     [VeloxProperty] private MidiEditorViewModel? _parent = null;
 

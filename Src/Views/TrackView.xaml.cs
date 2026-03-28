@@ -126,12 +126,12 @@ namespace Auris_Studio.Views
         {
             if (FindChannelButton() is Button channelButton)
             {
-                channelButton.ButtonContent = $"Channel · {track.Channel} ▾";
+                channelButton.ButtonContent = $"{track.Channel} ▾";
             }
             if (FindPatchButton() is Button patchButton)
             {
                 string label = track.IsPercussionChannel ? "Drum" : "Patch";
-                patchButton.ButtonContent = $"{label} · {track.PatchDisplayName} ▾";
+                patchButton.ButtonContent = $"{track.PatchDisplayName} ▾";
                 if (FindPatchLabel() is TextBlock patchLabel)
                 {
                     patchLabel.Text = label;

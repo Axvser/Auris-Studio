@@ -78,6 +78,20 @@ namespace Test
         }
 
         [TestMethod]
+        public void AddEmptyFirstTrack_ShouldNotResetExistingEditorMaxTime()
+        {
+            double widthPerTick = _viewModel.WidthPerTick;
+            ReflectionHelper.SetProperty(_viewModel, "ViewportWidth", widthPerTick * 960);
+
+            long maxTimeBeforeAddingTrack = _viewModel.MaxTime;
+
+            _viewModel.Tracks.Add(new MidiTrackViewModel());
+
+            Assert.IsTrue(maxTimeBeforeAddingTrack > 0, "视口初始化后应先得到一个正的编辑器时长");
+            Assert.AreEqual(maxTimeBeforeAddingTrack, _viewModel.MaxTime, "添加空的首个音轨时，不应把已有编辑器时长重置为0");
+        }
+
+        [TestMethod]
         public void Test_InternalPropertyAccess()
         {
             // 测试通过反射访问内部属性

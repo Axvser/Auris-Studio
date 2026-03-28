@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:Auris_Studio"
         xmlns:v="clr-namespace:Auris_Studio.Views"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800"
+        Title="MainWindow" Height="756" Width="1344"
         x:Name="Main"
         WindowStyle="None"
         MinWidth="640"
