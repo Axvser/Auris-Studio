@@ -7,11 +7,33 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Text.Json.Serialization;
 using System.Windows;
 using VeloxDev.Core.Interfaces.WorkflowSystem;
 using VeloxDev.Core.MVVM;
 
 namespace Auris_Studio.ViewModels;
+
+public enum NoteDragBehavior
+{
+    Free,
+    HorizontalPriority,
+    VerticalPriority,
+}
+
+public enum NoteMoveIntent
+{
+    None,
+    Horizontal,
+    Vertical,
+}
+
+public enum HorizontalMoveDirection
+{
+    None,
+    Left,
+    Right,
+}
 
 public partial class MidiEditorViewModel : IMidiFormatable
 {
@@ -41,6 +63,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
     // AI处理管道
     [VeloxProperty] private AIPipelineViewModel _aIPipeline = new();
+
+    [JsonIgnore]
+    public bool UseSnap { get; set; } = true;
+
+    [JsonIgnore]
+    public NoteDragBehavior DragBehavior { get; set; } = NoteDragBehavior.VerticalPriority;
 
     // [数据层] 计算属性
     [VeloxProperty] public partial long NowTime { get; internal set; } // 当前时间
@@ -86,6 +114,16 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial bool IsPlaying { get; internal set; } // 是否正在播放
     [VeloxProperty] public partial bool ProgressFollow { get; set; } // 进度跟随
     [VeloxProperty] public partial bool IsEnabled { get; internal set; } // 是否可交互
+    // 音符编辑细节参数
+    [VeloxProperty] public partial long DragInitialAbsoluteTime { get; internal set; }
+    [VeloxProperty] public partial int DragInitialDeltaTime { get; internal set; }
+    [VeloxProperty] public partial long DragPointerOffsetTicks { get; internal set; }
+    [VeloxProperty] public partial double DragInitialPointerLeft { get; internal set; }
+    [VeloxProperty] public partial double DragInitialPointerTop { get; internal set; }
+    [VeloxProperty] public partial long LastDragPointerTick { get; internal set; }
+    [VeloxProperty] public partial bool HasDragContext { get; internal set; }
+    [VeloxProperty] public partial NoteMoveIntent CurrentMoveIntent { get; internal set; }
+    [VeloxProperty] public partial HorizontalMoveDirection CurrentHorizontalMoveDirection { get; internal set; }
 
     public MidiEditorViewModel()
     {
@@ -203,7 +241,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         if (CapturedNote == null || PointerOperation == 0) return;
 
-        long pointerTick = (long)(newValue / WidthPerTick);
+        long pointerTick = ConvertPointerLeftToTick(newValue);
         long minNoteLength = GetMinNoteLength(); // 使用统一的最小长度
 
         switch (PointerOperation)
@@ -217,7 +255,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 break;
 
             case 3: // 整体移动
-                HandleNoteMove(pointerTick);
+                if (ShouldApplyHorizontalMove())
+                {
+                    HandleNoteMove(pointerTick);
+                }
                 break;
         }
 
@@ -225,6 +266,28 @@ public partial class MidiEditorViewModel : IMidiFormatable
         {
             UpdateNote(CapturedNote);
         }
+    }
+
+    partial void OnCapturedNoteChanged(NoteEventViewModel? oldValue, NoteEventViewModel? newValue)
+    {
+        if (newValue is null)
+        {
+            ResetDragContext();
+            return;
+        }
+
+        TryInitializeDragContext(reset: true);
+    }
+
+    partial void OnPointerOperationChanged(int oldValue, int newValue)
+    {
+        if (newValue == 0)
+        {
+            ResetDragContext();
+            return;
+        }
+
+        TryInitializeDragContext(reset: true);
     }
 
     partial void OnPointerTopChanged(double oldValue, double newValue)
@@ -235,7 +298,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
     partial void OnPointerNoteChanged(int oldValue, int newValue)
     {
         if (CapturedNote is not null &&
-            PointerOperation == 3)
+            PointerOperation == 3 &&
+            ShouldApplyVerticalMove())
         {
             CapturedNote.Note = (Pitch)newValue;
         }
@@ -286,7 +350,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
             // 3.3 如果有选中的音轨，创建新音符
             if (CurrentSelectedTrack != null)
             {
-                CreateNoteAtPosition((long)(PointerLeft / WidthPerTick), currentNotePitch);
+                CreateNoteAtPosition(ConvertPointerLeftToTick(PointerLeft), currentNotePitch);
             }
         }
     }
@@ -296,7 +360,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         if (CurrentSelectedTrack == null) return;
 
         // 1. 对齐到最近的对齐点
-        long alignedTime = AlignTimeForward(absoluteTime);
+        long alignedTime = AlignTimeNearest(absoluteTime);
 
         // 2. 获取最小音符长度
         long minNoteLength = GetMinNoteLength();
@@ -346,7 +410,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
         // 1. 提取组合后的对齐值
         Alignment alignment = this._alignment;
         long ppqn = this._pPQN;
-        int denominator = this.Denominator;
 
         // 2. 分离并验证基础音符时值部分
         Alignment noteValue = alignment & Alignment.NoteValueMask;
@@ -411,41 +474,46 @@ public partial class MidiEditorViewModel : IMidiFormatable
         double finalTicksDouble = baseTicks * dotMultiplier * tupletMultiplier;
         long finalTicks = (long)Math.Round(finalTicksDouble);
 
-        // 7. 新增：基于拍号的最小步长限制
-        long minStepByTimeSignature = CalculateMinStepByTimeSignature(ppqn, denominator);
-        if (finalTicks < minStepByTimeSignature)
-        {
-            finalTicks = minStepByTimeSignature;
-        }
-
-        // 8. 最终验证，确保结果为合理正数
+        // 7. 最终验证，确保结果为合理正数
         if (finalTicks <= 0)
         {
-            finalTicks = ppqn / 2; // 兜底为八分音符
+            finalTicks = Math.Max(1, ppqn / 2); // 兜底为八分音符
         }
 
         return finalTicks;
     }
 
-    private static long CalculateMinStepByTimeSignature(long ppqn, int denominator)
+    private long AlignTimeNearest(long time)
     {
-        long beatTicks = ppqn * 4 / denominator;
-        long minStep = beatTicks / 2;
-        return Math.Max(1, minStep);
+        if (!UseSnap) return Math.Max(0, time);
+
+        long step = GetAlignmentStep();
+        if (step <= 0) return Math.Max(0, time);
+        if (time <= 0) return 0;
+
+        return ((time + step / 2) / step) * step;
     }
 
     public long AlignTimeForward(long time)
     {
+        if (!UseSnap) return Math.Max(0, time);
+
         long step = GetAlignmentStep();
-        if (step <= 0) return time;
+        if (step <= 0) return Math.Max(0, time);
+        if (time <= 0) return 0;
+
         // 向上取整
         return ((time + step - 1) / step) * step;
     }
 
     public long AlignTimeBackward(long time)
     {
+        if (!UseSnap) return Math.Max(0, time);
+
         long step = GetAlignmentStep();
-        if (step <= 0) return time;
+        if (step <= 0) return Math.Max(0, time);
+        if (time <= 0) return 0;
+
         // 向下取整
         return (time / step) * step;
     }
@@ -454,75 +522,282 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         if (CapturedNote == null) return;
 
-        // 计算鼠标指针相对于音符原中心点的偏移
-        long originalCenter = CapturedNote.AbsoluteTime + CapturedNote.DeltaTime / 2;
-        long centerOffset = pointerTick - originalCenter;
+        TryInitializeDragContext();
 
-        // 优先对齐起始时间
-        long targetAbsoluteTime = AlignTimeForward(CapturedNote.AbsoluteTime + centerOffset);
+        UpdateHorizontalMoveDirection(pointerTick);
 
-        // 确保新起始时间不为负数
-        if (targetAbsoluteTime < 0)
-        {
-            targetAbsoluteTime = 0;
-        }
+        long targetAbsoluteTime = CalculateMoveTargetAbsoluteTime(pointerTick, CurrentHorizontalMoveDirection);
 
-        // 根据对齐后的起始时间，计算结束时间
-        long targetEndTime = targetAbsoluteTime + CapturedNote.DeltaTime;
-
-        // 重新计算最终的时长
-        long newDeltaTime = targetEndTime - targetAbsoluteTime;
-
-        // 应用更新
         CapturedNote.AbsoluteTime = targetAbsoluteTime;
-        CapturedNote.DeltaTime = (int)newDeltaTime;
+        CapturedNote.DeltaTime = DragInitialDeltaTime;
+        LastDragPointerTick = pointerTick;
     }
 
     private void HandleAbsoluteTimeAdjustment(long pointerTick, long minNoteLength)
     {
         if (CapturedNote == null) return;
 
-        long alignedTime = AlignTimeForward(pointerTick);
-        long maxValidStartTime = AlignTimeBackward(
-            CapturedNote.AbsoluteTime + CapturedNote.DeltaTime - minNoteLength
-        );
+        TryInitializeDragContext();
 
-        if (alignedTime <= maxValidStartTime)
-        {
-            long originalEndTime = CapturedNote.AbsoluteTime + CapturedNote.DeltaTime;
-            CapturedNote.AbsoluteTime = alignedTime;
-            CapturedNote.DeltaTime = (int)(originalEndTime - alignedTime);
-        }
-        else
-        {
-            // 自动对齐到最大允许起始时间
-            CapturedNote.AbsoluteTime = maxValidStartTime;
-            CapturedNote.DeltaTime = (int)((CapturedNote.AbsoluteTime + CapturedNote.DeltaTime) - maxValidStartTime);
-        }
+        long fixedEndTime = DragInitialAbsoluteTime + DragInitialDeltaTime;
+        long alignedTime = AlignTimeNearest(pointerTick);
+        long maxValidStartTime = Math.Max(0, fixedEndTime - minNoteLength);
+
+        alignedTime = Math.Clamp(alignedTime, 0, maxValidStartTime);
+
+        CapturedNote.AbsoluteTime = alignedTime;
+        CapturedNote.DeltaTime = (int)Math.Max(minNoteLength, fixedEndTime - alignedTime);
     }
 
     private void HandleDeltaTimeAdjustment(long pointerTick, long minNoteLength)
     {
         if (CapturedNote == null) return;
 
-        long alignedEndTime = AlignTimeForward(pointerTick);
-        long minValidEndTime = AlignTimeForward(CapturedNote.AbsoluteTime + minNoteLength);
+        TryInitializeDragContext();
 
-        if (alignedEndTime >= minValidEndTime)
+        long fixedStartTime = DragInitialAbsoluteTime;
+        long alignedEndTime = AlignTimeNearest(pointerTick);
+        long minValidEndTime = fixedStartTime + minNoteLength;
+
+        if (alignedEndTime < minValidEndTime)
         {
-            CapturedNote.DeltaTime = (int)(alignedEndTime - CapturedNote.AbsoluteTime);
+            alignedEndTime = minValidEndTime;
         }
-        else
-        {
-            CapturedNote.DeltaTime = (int)(minValidEndTime - CapturedNote.AbsoluteTime);
-        }
+
+        CapturedNote.AbsoluteTime = fixedStartTime;
+        CapturedNote.DeltaTime = (int)(alignedEndTime - fixedStartTime);
     }
 
     public long GetMinNoteLength()
     {
+        if (!UseSnap) return 1;
+
         long alignmentStep = GetAlignmentStep();
-        long timeSignatureMinStep = CalculateMinStepByTimeSignature(PPQN, Denominator);
-        return Math.Max(alignmentStep, timeSignatureMinStep);
+        return Math.Max(1, alignmentStep);
+    }
+
+    private long ConvertPointerLeftToTick(double pointerLeft)
+    {
+        if (WidthPerTick <= 0) return 0;
+        return Math.Max(0, (long)Math.Round(pointerLeft / WidthPerTick));
+    }
+
+    private void TryInitializeDragContext(bool reset = false)
+    {
+        if (reset)
+        {
+            HasDragContext = false;
+            CurrentMoveIntent = NoteMoveIntent.None;
+        }
+
+        if (HasDragContext || CapturedNote == null || PointerOperation == 0)
+        {
+            return;
+        }
+
+        DragInitialAbsoluteTime = CapturedNote.AbsoluteTime;
+        DragInitialDeltaTime = CapturedNote.DeltaTime;
+        DragPointerOffsetTicks = ConvertPointerLeftToTick(PointerLeft) - CapturedNote.AbsoluteTime;
+        DragInitialPointerLeft = PointerLeft;
+        DragInitialPointerTop = PointerTop;
+        LastDragPointerTick = ConvertPointerLeftToTick(PointerLeft);
+        HasDragContext = true;
+    }
+
+    private void ResetDragContext()
+    {
+        DragInitialAbsoluteTime = 0;
+        DragInitialDeltaTime = 0;
+        DragPointerOffsetTicks = 0;
+        DragInitialPointerLeft = 0;
+        DragInitialPointerTop = 0;
+        LastDragPointerTick = 0;
+        HasDragContext = false;
+        CurrentMoveIntent = NoteMoveIntent.None;
+        CurrentHorizontalMoveDirection = HorizontalMoveDirection.None;
+    }
+
+    private bool ShouldApplyHorizontalMove()
+    {
+        TryInitializeDragContext();
+        UpdateMoveIntent();
+
+        if (CurrentMoveIntent == NoteMoveIntent.Vertical)
+        {
+            return false;
+        }
+
+        if (CurrentMoveIntent == NoteMoveIntent.Horizontal)
+        {
+            return true;
+        }
+
+        return GetHorizontalMoveDistanceInPixels() >= GetHorizontalDeadZoneInPixels();
+    }
+
+    private bool ShouldApplyVerticalMove()
+    {
+        TryInitializeDragContext();
+        UpdateMoveIntent();
+
+        if (CurrentMoveIntent == NoteMoveIntent.Horizontal)
+        {
+            return false;
+        }
+
+        if (CurrentMoveIntent == NoteMoveIntent.Vertical)
+        {
+            return true;
+        }
+
+        return GetVerticalMoveDistanceInPixels() >= GetVerticalDeadZoneInPixels();
+    }
+
+    private void UpdateMoveIntent()
+    {
+        if (this.DragBehavior == NoteDragBehavior.Free)
+        {
+            CurrentMoveIntent = NoteMoveIntent.None;
+            return;
+        }
+
+        if (!HasDragContext || PointerOperation != 3)
+        {
+            CurrentMoveIntent = NoteMoveIntent.None;
+            return;
+        }
+
+        double horizontalUnits = GetHorizontalMoveDistanceInPixels() / GetHorizontalDeadZoneInPixels();
+        double verticalUnits = GetVerticalMoveDistanceInPixels() / GetVerticalDeadZoneInPixels();
+        double preferredDominance = this.DragBehavior == NoteDragBehavior.VerticalPriority ? 1.1 : 1.35;
+        double nonPreferredDominance = this.DragBehavior == NoteDragBehavior.HorizontalPriority ? 1.1 : 1.35;
+        double switchToPreferred = this.DragBehavior == NoteDragBehavior.VerticalPriority ? 1.35 : 1.55;
+        double switchToNonPreferred = this.DragBehavior == NoteDragBehavior.HorizontalPriority ? 1.35 : 1.7;
+
+        switch (CurrentMoveIntent)
+        {
+            case NoteMoveIntent.None:
+                if (verticalUnits >= 1.0 && verticalUnits >= horizontalUnits * preferredDominance)
+                {
+                    CurrentMoveIntent = this.DragBehavior == NoteDragBehavior.HorizontalPriority
+                        ? NoteMoveIntent.None
+                        : NoteMoveIntent.Vertical;
+                }
+                if (CurrentMoveIntent == NoteMoveIntent.None &&
+                    horizontalUnits >= 1.0 && horizontalUnits >= verticalUnits * nonPreferredDominance)
+                {
+                    CurrentMoveIntent = this.DragBehavior == NoteDragBehavior.VerticalPriority
+                        ? NoteMoveIntent.None
+                        : NoteMoveIntent.Horizontal;
+                }
+
+                if (CurrentMoveIntent == NoteMoveIntent.None)
+                {
+                    if (this.DragBehavior == NoteDragBehavior.VerticalPriority && verticalUnits >= 1.0)
+                    {
+                        CurrentMoveIntent = NoteMoveIntent.Vertical;
+                    }
+                    else if (this.DragBehavior == NoteDragBehavior.HorizontalPriority && horizontalUnits >= 1.0)
+                    {
+                        CurrentMoveIntent = NoteMoveIntent.Horizontal;
+                    }
+                }
+                break;
+
+            case NoteMoveIntent.Horizontal:
+                if (verticalUnits >= 1.6 && verticalUnits >= horizontalUnits * switchToPreferred)
+                {
+                    CurrentMoveIntent = NoteMoveIntent.Vertical;
+                }
+                break;
+
+            case NoteMoveIntent.Vertical:
+                if (horizontalUnits >= 1.8 && horizontalUnits >= verticalUnits * switchToNonPreferred)
+                {
+                    CurrentMoveIntent = NoteMoveIntent.Horizontal;
+                }
+                break;
+        }
+    }
+
+    private void UpdateHorizontalMoveDirection(long pointerTick)
+    {
+        long delta = pointerTick - LastDragPointerTick;
+        if (delta > 0)
+        {
+            CurrentHorizontalMoveDirection = HorizontalMoveDirection.Right;
+        }
+        else if (delta < 0)
+        {
+            CurrentHorizontalMoveDirection = HorizontalMoveDirection.Left;
+        }
+    }
+
+    private long CalculateMoveTargetAbsoluteTime(long pointerTick, HorizontalMoveDirection direction)
+    {
+        long rawStartTime = Math.Max(0, pointerTick - DragPointerOffsetTicks);
+        if (!UseSnap)
+        {
+            return rawStartTime;
+        }
+
+        if (direction == HorizontalMoveDirection.Right)
+        {
+            long rawEndTime = rawStartTime + DragInitialDeltaTime;
+            return Math.Max(0, AlignTimeNearest(rawEndTime) - DragInitialDeltaTime);
+        }
+
+        if (direction == HorizontalMoveDirection.Left)
+        {
+            return AlignTimeNearest(rawStartTime);
+        }
+
+        return rawStartTime >= DragInitialAbsoluteTime
+            ? Math.Max(0, AlignTimeNearest(rawStartTime + DragInitialDeltaTime) - DragInitialDeltaTime)
+            : AlignTimeNearest(rawStartTime);
+    }
+
+    private double GetHorizontalMoveDistanceInPixels() => Math.Abs(PointerLeft - DragInitialPointerLeft);
+
+    private double GetVerticalMoveDistanceInPixels() => Math.Abs(PointerTop - DragInitialPointerTop);
+
+    private double GetHorizontalDeadZoneInPixels()
+    {
+        double gridWidth = UseSnap ? WidthPerTick * GetAlignmentStep() : WidthPerTick * 6;
+        double baseDeadZone = Math.Max(6.0, Math.Min(18.0, Math.Max(WidthPerTick * 12, gridWidth * 0.25)));
+
+        baseDeadZone *= this.DragBehavior switch
+        {
+            NoteDragBehavior.HorizontalPriority => 0.75,
+            NoteDragBehavior.VerticalPriority => 1.35,
+            _ => 1.0,
+        };
+
+        if (CurrentMoveIntent == NoteMoveIntent.Vertical)
+        {
+            return baseDeadZone * 2.0;
+        }
+
+        return baseDeadZone;
+    }
+
+    private double GetVerticalDeadZoneInPixels()
+    {
+        double baseDeadZone = Math.Max(6.0, HeightPerLine * 0.75);
+
+        baseDeadZone *= this.DragBehavior switch
+        {
+            NoteDragBehavior.HorizontalPriority => 1.35,
+            NoteDragBehavior.VerticalPriority => 0.75,
+            _ => 1.0,
+        };
+
+        if (CurrentMoveIntent == NoteMoveIntent.Horizontal)
+        {
+            return baseDeadZone * 1.75;
+        }
+
+        return baseDeadZone;
     }
 
     private int FindPitchByTop(double pointerTop)

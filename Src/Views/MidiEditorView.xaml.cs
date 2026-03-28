@@ -31,7 +31,12 @@ namespace Auris_Studio.Views
             if (e.NewValue is MidiEditorViewModel newValue)
             {
                 if (oldValue?.AIPipeline is not null) newValue.AIPipeline = oldValue.AIPipeline;
-                if(oldValue is not null)newValue.ProgressFollow = oldValue.ProgressFollow;
+                if (oldValue is not null)
+                {
+                    newValue.ProgressFollow = oldValue.ProgressFollow;
+                    newValue.UseSnap = oldValue.UseSnap;
+                    newValue.DragBehavior = oldValue.DragBehavior;
+                }
                 newValue.PropertyChanged += IsPlaying_PropertyChanged;
                 PlayButton.Command = newValue.PlayCommand;
             }

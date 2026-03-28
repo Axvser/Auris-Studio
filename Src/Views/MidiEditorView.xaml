@@ -29,7 +29,8 @@
         <!-- 编辑器头栏 -->
         <Grid Grid.Row="0">
             <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Left">
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center">
                 <local:Button x:Name="TracksButton"
                               ButtonContent="▶ Tracks"
                               Click="Tracks_Click"/>
@@ -45,6 +46,23 @@
                 <local:Button x:Name="Component"
                               ButtonContent="AI Pipeline"
                               Click="Component_Click"/>
+                <CheckBox Margin="16,0,0,0"
+                          VerticalAlignment="Center"
+                          IsChecked="{Binding UseSnap, Mode=TwoWay}"
+                          Foreground="{Binding ElementName=Root,Path=Foreground}"
+                          Content="Snap"/>
+                <ComboBox Width="140"
+                          Margin="12,0,0,0"
+                          VerticalAlignment="Center"
+                          SelectedValuePath="Tag"
+                          SelectedValue="{Binding DragBehavior, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                    <ComboBoxItem Content="Drag: Free"
+                                  Tag="{x:Static vm:NoteDragBehavior.Free}"/>
+                    <ComboBoxItem Content="Drag: Horizontal"
+                                  Tag="{x:Static vm:NoteDragBehavior.HorizontalPriority}"/>
+                    <ComboBoxItem Content="Drag: Vertical"
+                                  Tag="{x:Static vm:NoteDragBehavior.VerticalPriority}"/>
+                </ComboBox>
             </StackPanel>
         </Grid>
 
