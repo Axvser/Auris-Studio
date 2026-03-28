@@ -1,5 +1,6 @@
 using Auris_Studio.ViewModels;
 using System.Windows;
+using System.Windows.Controls.Primitives;
 using VeloxDev.Core.DynamicTheme;
 using VeloxDev.WPF.PlatformAdapters;
 
@@ -66,6 +67,74 @@ namespace Auris_Studio
             ThemeManager.Jump(
                 ThemeManager.Current == typeof(Dark) ? typeof(Light) : typeof(Dark));
             ThemeButton.ButtonContent = ThemeManager.Current == typeof(Dark) ? logo_sun : logo_mon;
+        }
+
+        private void ResizeThumb_DragDelta(object sender, DragDeltaEventArgs e)
+        {
+            if (WindowState != WindowState.Normal || sender is not Thumb thumb || thumb.Tag is not string direction)
+            {
+                return;
+            }
+
+            switch (direction)
+            {
+                case "TopLeft":
+                    ResizeTop(e.VerticalChange);
+                    ResizeLeft(e.HorizontalChange);
+                    break;
+                case "Top":
+                    ResizeTop(e.VerticalChange);
+                    break;
+                case "TopRight":
+                    ResizeTop(e.VerticalChange);
+                    ResizeRight(e.HorizontalChange);
+                    break;
+                case "Left":
+                    ResizeLeft(e.HorizontalChange);
+                    break;
+                case "Right":
+                    ResizeRight(e.HorizontalChange);
+                    break;
+                case "BottomLeft":
+                    ResizeBottom(e.VerticalChange);
+                    ResizeLeft(e.HorizontalChange);
+                    break;
+                case "Bottom":
+                    ResizeBottom(e.VerticalChange);
+                    break;
+                case "BottomRight":
+                    ResizeBottom(e.VerticalChange);
+                    ResizeRight(e.HorizontalChange);
+                    break;
+            }
+        }
+
+        private void ResizeLeft(double horizontalChange)
+        {
+            double currentWidth = Width;
+            double newWidth = Math.Max(MinWidth, currentWidth - horizontalChange);
+            double appliedChange = currentWidth - newWidth;
+            Width = newWidth;
+            Left += appliedChange;
+        }
+
+        private void ResizeRight(double horizontalChange)
+        {
+            Width = Math.Max(MinWidth, Width + horizontalChange);
+        }
+
+        private void ResizeTop(double verticalChange)
+        {
+            double currentHeight = Height;
+            double newHeight = Math.Max(MinHeight, currentHeight - verticalChange);
+            double appliedChange = currentHeight - newHeight;
+            Height = newHeight;
+            Top += appliedChange;
+        }
+
+        private void ResizeBottom(double verticalChange)
+        {
+            Height = Math.Max(MinHeight, Height + verticalChange);
         }
     }
 }

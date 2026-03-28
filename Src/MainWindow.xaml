@@ -9,6 +9,8 @@
         Title="MainWindow" Height="450" Width="800"
         x:Name="Main"
         WindowStyle="None"
+        MinWidth="640"
+        MinHeight="360"
         ResizeMode="NoResize">
 
     <Window.Resources>
@@ -16,6 +18,19 @@
             <Setter Property="ContentMargin" Value="4,3,4,3"/>
             <Setter Property="UseHoverBackground" Value="False"/>
             <Setter Property="Margin" Value="5,0,5,0"/>
+        </Style>
+        <Style x:Key="ResizeHitThumbStyle" TargetType="Thumb">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="Transparent"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -57,6 +72,96 @@
                               Grid.Row="1"
                               Background="{Binding ElementName=Main,Path=Background}"
                               Foreground="{Binding ElementName=Main,Path=Foreground}"/>
+        </Grid>
+
+        <Grid x:Name="ResizeOverlay"
+              Grid.RowSpan="2"
+              Panel.ZIndex="999">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="IsHitTestVisible" Value="True"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding ElementName=Main, Path=WindowState}" Value="Maximized">
+                            <Setter Property="IsHitTestVisible" Value="False"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="6"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="6"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="6"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="6"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Row="0"
+                    Grid.Column="0"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeNWSE"
+                       Tag="TopLeft"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
+            <Border Grid.Row="0"
+                    Grid.Column="1"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeNS"
+                       Tag="Top"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
+            <Border Grid.Row="0"
+                    Grid.Column="2"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeNESW"
+                       Tag="TopRight"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
+            <Border Grid.Row="1"
+                    Grid.Column="0"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeWE"
+                       Tag="Left"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
+            <Border Grid.Row="1"
+                    Grid.Column="2"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeWE"
+                       Tag="Right"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
+            <Border Grid.Row="2"
+                    Grid.Column="0"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeNESW"
+                       Tag="BottomLeft"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
+            <Border Grid.Row="2"
+                    Grid.Column="1"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeNS"
+                       Tag="Bottom"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
+            <Border Grid.Row="2"
+                    Grid.Column="2"
+                    Background="#01FFFFFF">
+                <Thumb Style="{StaticResource ResizeHitThumbStyle}"
+                       Cursor="SizeNWSE"
+                       Tag="BottomRight"
+                       DragDelta="ResizeThumb_DragDelta"/>
+            </Border>
         </Grid>
     </Grid>
 </Window>

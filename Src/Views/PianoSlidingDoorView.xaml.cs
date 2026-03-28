@@ -1,6 +1,8 @@
 ﻿using Auris_Studio.ViewModels;
+using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using VeloxDev.Core.TimeLine;
 
 namespace Auris_Studio.Views
@@ -8,37 +10,65 @@ namespace Auris_Studio.Views
     [MonoBehaviour]
     public partial class PianoSlidingDoorView : UserControl
     {
+        private MidiEditorViewModel? _currentVm;
+
         public PianoSlidingDoorView()
         {
             InitializeComponent();
             MonoBehaviourManager.RegisterBehaviour(this);
-            Application.Current.MainWindow.StateChanged += MainWindow_StateChanged;
             DataContextChanged += PianoSlidingDoorView_DataContextChanged;
+            Loaded += PianoSlidingDoorView_Loaded;
+            Unloaded += PianoSlidingDoorView_Unloaded;
         }
 
         ~PianoSlidingDoorView()
         {
-            Application.Current.MainWindow.StateChanged -= MainWindow_StateChanged;
+            if (Application.Current?.MainWindow is Window mainWindow)
+            {
+                mainWindow.StateChanged -= MainWindow_StateChanged;
+            }
+        }
+
+        private void PianoSlidingDoorView_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (Application.Current?.MainWindow is Window mainWindow)
+            {
+                mainWindow.StateChanged -= MainWindow_StateChanged;
+                mainWindow.StateChanged += MainWindow_StateChanged;
+            }
+
+            ScheduleViewportSync();
+        }
+
+        private void PianoSlidingDoorView_Unloaded(object sender, RoutedEventArgs e)
+        {
+            if (Application.Current?.MainWindow is Window mainWindow)
+            {
+                mainWindow.StateChanged -= MainWindow_StateChanged;
+            }
         }
 
         private void MainWindow_StateChanged(object? sender, EventArgs e)
         {
-            if (DataContext is MidiEditorViewModel vm)
-            {
-                vm.ViewportLeft = HorizontalScrollBar.Offset;
-                vm.ViewportTop = VerticalScrollBar.Offset;
-                vm.ViewportWidth = HorizontalScrollBar.ActualWidth;
-                vm.ViewportHeight = HorizontalScrollBar.ActualHeight;
-            }
+            SyncViewportMetrics();
         }
 
         private void PianoSlidingDoorView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.NewValue is MidiEditorViewModel vm)
+            if (_currentVm is not null)
             {
+                _currentVm.Tracks.CollectionChanged -= Tracks_CollectionChanged;
+            }
+
+            _currentVm = e.NewValue as MidiEditorViewModel;
+            if (_currentVm is not null)
+            {
+                _currentVm.Tracks.CollectionChanged += Tracks_CollectionChanged;
                 HorizontalScrollBar.SetValueSafely(value: 0);
                 VerticalScrollBar.SetValueSafely(value: 0);
             }
+
+            ScheduleViewportSync();
         }
 
         partial void Update(FrameEventArgs e)
@@ -82,24 +112,12 @@ namespace Auris_Studio.Views
 
         private void NotesScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (DataContext is MidiEditorViewModel vm)
-            {
-                vm.ViewportLeft = HorizontalScrollBar.Offset;
-                vm.ViewportTop = VerticalScrollBar.Offset;
-                vm.ViewportWidth = e.NewSize.Width;
-                vm.ViewportHeight = e.NewSize.Height;
-            }
+            SyncViewportMetrics(e.NewSize.Width, e.NewSize.Height);
         }
 
         private void Canvas_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (DataContext is MidiEditorViewModel vm)
-            {
-                vm.ViewportLeft = HorizontalScrollBar.Offset;
-                vm.ViewportTop = VerticalScrollBar.Offset;
-                vm.ViewportWidth = HorizontalScrollBar.ActualWidth;
-                vm.ViewportHeight = HorizontalScrollBar.ActualHeight;
-            }
+            SyncViewportMetrics();
         }
 
         private void Canvas_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
@@ -186,6 +204,36 @@ namespace Auris_Studio.Views
         private void NoteView_LayerChanged(object sender, EventArgs e)
         {
             NotesCanvas.InvalidateVisual();
+        }
+
+        private void Tracks_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            ScheduleViewportSync();
+        }
+
+        private void ScheduleViewportSync()
+        {
+            Dispatcher.BeginInvoke(SyncViewportMetrics, DispatcherPriority.Loaded);
+        }
+
+        private void SyncViewportMetrics()
+        {
+            double viewportWidth = NotesScrollViewer.ViewportWidth > 0 ? NotesScrollViewer.ViewportWidth : NotesScrollViewer.ActualWidth;
+            double viewportHeight = NotesScrollViewer.ViewportHeight > 0 ? NotesScrollViewer.ViewportHeight : NotesScrollViewer.ActualHeight;
+            SyncViewportMetrics(viewportWidth, viewportHeight);
+        }
+
+        private void SyncViewportMetrics(double viewportWidth, double viewportHeight)
+        {
+            if (DataContext is not MidiEditorViewModel vm)
+            {
+                return;
+            }
+
+            vm.ViewportLeft = HorizontalScrollBar.Offset;
+            vm.ViewportTop = VerticalScrollBar.Offset;
+            vm.ViewportWidth = viewportWidth > 0 ? viewportWidth : HorizontalScrollBar.ActualWidth;
+            vm.ViewportHeight = viewportHeight > 0 ? viewportHeight : NotesScrollViewer.ActualHeight;
         }
     }
 }
