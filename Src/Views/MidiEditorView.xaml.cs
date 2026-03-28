@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using VeloxDev.Core.Extension;
 
 namespace Auris_Studio.Views
@@ -39,6 +40,7 @@ namespace Auris_Studio.Views
                 }
                 newValue.PropertyChanged += IsPlaying_PropertyChanged;
                 PlayButton.Command = newValue.PlayCommand;
+                RefreshEditorPreferenceButtons(newValue);
             }
         }
 
@@ -347,5 +349,62 @@ namespace Auris_Studio.Views
                 FollowButton.ButtonContent = vm.ProgressFollow ? logo_hand : logo_auto;
             }
         }
+
+        private void SnapButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MidiEditorViewModel vm) return;
+
+            vm.UseSnap = !vm.UseSnap;
+            RefreshEditorPreferenceButtons(vm);
+        }
+
+        private void DragModeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FindDragModePopup() is Popup popup)
+            {
+                popup.IsOpen = !popup.IsOpen;
+            }
+        }
+
+        private void DragModeOption_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MidiEditorViewModel vm || sender is not ToolbarMenuItem menuItem || menuItem.Parameter is not NoteDragBehavior dragBehavior)
+            {
+                return;
+            }
+
+            vm.DragBehavior = dragBehavior;
+            if (FindDragModePopup() is Popup popup)
+            {
+                popup.IsOpen = false;
+            }
+            RefreshEditorPreferenceButtons(vm);
+        }
+
+        private void RefreshEditorPreferenceButtons(MidiEditorViewModel vm)
+        {
+            if (FindSnapButton() is Views.Button snapButton)
+            {
+                snapButton.ButtonContent = vm.UseSnap ? "Snap · On" : "Snap · Off";
+            }
+
+            if (FindDragModeButton() is Views.Button dragModeButton)
+            {
+                dragModeButton.ButtonContent = $"Drag · {GetDragBehaviorText(vm.DragBehavior)} ▾";
+            }
+        }
+
+        private static string GetDragBehaviorText(NoteDragBehavior dragBehavior) => dragBehavior switch
+        {
+            NoteDragBehavior.Free => "Free",
+            NoteDragBehavior.HorizontalPriority => "Horizontal",
+            _ => "Vertical",
+        };
+
+        private Views.Button? FindSnapButton() => FindName("SnapButton") as Views.Button;
+
+        private Views.Button? FindDragModeButton() => FindName("DragModeButton") as Views.Button;
+
+        private Popup? FindDragModePopup() => FindName("DragModePopup") as Popup;
     }
 }

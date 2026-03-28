@@ -64,12 +64,6 @@ public partial class MidiEditorViewModel : IMidiFormatable
     // AI处理管道
     [VeloxProperty] private AIPipelineViewModel _aIPipeline = new();
 
-    [JsonIgnore]
-    public bool UseSnap { get; set; } = true;
-
-    [JsonIgnore]
-    public NoteDragBehavior DragBehavior { get; set; } = NoteDragBehavior.VerticalPriority;
-
     // [数据层] 计算属性
     [VeloxProperty] public partial long NowTime { get; internal set; } // 当前时间
     [VeloxProperty] public partial long MaxTime { get; internal set; } // 最大时间
@@ -115,6 +109,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial bool ProgressFollow { get; set; } // 进度跟随
     [VeloxProperty] public partial bool IsEnabled { get; internal set; } // 是否可交互
     // 音符编辑细节参数
+    [VeloxProperty] public partial bool UseSnap { get; internal set; }
+    [VeloxProperty] public partial NoteDragBehavior DragBehavior { get; internal set; }
     [VeloxProperty] public partial long DragInitialAbsoluteTime { get; internal set; }
     [VeloxProperty] public partial int DragInitialDeltaTime { get; internal set; }
     [VeloxProperty] public partial long DragPointerOffsetTicks { get; internal set; }

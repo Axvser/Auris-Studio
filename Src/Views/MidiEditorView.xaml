@@ -18,6 +18,14 @@
             <Setter Property="ContentMargin" Value="14,10,14,10"/>
             <Setter Property="BlurRadius" Value="20"/>
         </Style>
+        <Style x:Key="ToolbarChipButtonStyle" TargetType="local:Button" BasedOn="{StaticResource {x:Type local:Button}}">
+            <Setter Property="Margin" Value="12,0,0,0"/>
+            <Setter Property="CornerRadius" Value="18"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="ContentMargin" Value="14,8,14,8"/>
+            <Setter Property="UseHoverForeground" Value="False"/>
+        </Style>
     </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -46,23 +54,49 @@
                 <local:Button x:Name="Component"
                               ButtonContent="AI Pipeline"
                               Click="Component_Click"/>
-                <CheckBox Margin="16,0,0,0"
-                          VerticalAlignment="Center"
-                          IsChecked="{Binding UseSnap, Mode=TwoWay}"
-                          Foreground="{Binding ElementName=Root,Path=Foreground}"
-                          Content="Snap"/>
-                <ComboBox Width="140"
-                          Margin="12,0,0,0"
-                          VerticalAlignment="Center"
-                          SelectedValuePath="Tag"
-                          SelectedValue="{Binding DragBehavior, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                    <ComboBoxItem Content="Drag: Free"
-                                  Tag="{x:Static vm:NoteDragBehavior.Free}"/>
-                    <ComboBoxItem Content="Drag: Horizontal"
-                                  Tag="{x:Static vm:NoteDragBehavior.HorizontalPriority}"/>
-                    <ComboBoxItem Content="Drag: Vertical"
-                                  Tag="{x:Static vm:NoteDragBehavior.VerticalPriority}"/>
-                </ComboBox>
+                <local:Button x:Name="SnapButton"
+                              Style="{StaticResource ToolbarChipButtonStyle}"
+                              ButtonContent="Snap"
+                              Click="SnapButton_Click"/>
+                <local:Button x:Name="DragModeButton"
+                              Style="{StaticResource ToolbarChipButtonStyle}"
+                              ButtonContent="Drag"
+                              Click="DragModeButton_Click"/>
+                <Popup x:Name="DragModePopup"
+                       PlacementTarget="{Binding ElementName=DragModeButton}"
+                       Placement="Bottom"
+                       StaysOpen="False"
+                       AllowsTransparency="True"
+                       PopupAnimation="Fade">
+                    <Border Margin="0,8,0,0"
+                            Padding="8"
+                            CornerRadius="20"
+                            Background="{Binding ElementName=Root,Path=Background}"
+                            BorderThickness="0"
+                            Opacity="0.97">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="18"
+                                              ShadowDepth="0"
+                                              Opacity="0.25"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <local:ToolbarMenuItem Text="Free Drag"
+                                                   Foreground="{Binding ElementName=Root,Path=Foreground}"
+                                                   Parameter="{x:Static vm:NoteDragBehavior.Free}"
+                                                   Click="DragModeOption_Click"/>
+                            <local:ToolbarMenuItem Margin="0,6,0,0"
+                                                   Text="Horizontal Priority"
+                                                   Foreground="{Binding ElementName=Root,Path=Foreground}"
+                                                   Parameter="{x:Static vm:NoteDragBehavior.HorizontalPriority}"
+                                                   Click="DragModeOption_Click"/>
+                            <local:ToolbarMenuItem Margin="0,6,0,0"
+                                                   Text="Vertical Priority"
+                                                   Foreground="{Binding ElementName=Root,Path=Foreground}"
+                                                   Parameter="{x:Static vm:NoteDragBehavior.VerticalPriority}"
+                                                   Click="DragModeOption_Click"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
             </StackPanel>
         </Grid>
 
