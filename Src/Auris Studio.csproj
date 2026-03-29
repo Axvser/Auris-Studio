@@ -17,8 +17,4 @@
     <PackageReference Include="VeloxDev.WPF" Version="3.7.29" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="ViewViews\" />
-  </ItemGroup>
-
 </Project>
