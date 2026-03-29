@@ -673,5 +673,19 @@ namespace Test
             var result3 = collection.FindFirstAtOrBefore(50);
             Assert.IsNull(result3, "当tick小于所有元素的开始时间时，应返回null");
         }
+
+        [TestMethod]
+        public void FindMethods_ShouldSupportEventsAtTickZero()
+        {
+            var collection = new TimeOrderableCollection<NoteEventViewModel>();
+            var itemAtZero = new NoteEventViewModel { AbsoluteTime = 0, DeltaTime = 120 };
+            var itemAtLater = new NoteEventViewModel { AbsoluteTime = 240, DeltaTime = 120 };
+
+            collection.Add(itemAtZero);
+            collection.Add(itemAtLater);
+
+            Assert.AreSame(itemAtZero, collection.FindFirstAtOrAfter(0), "FindFirstAtOrAfter 应正确返回 0 tick 的元素");
+            Assert.AreSame(itemAtZero, collection.FindFirstAtOrBefore(0), "FindFirstAtOrBefore 应正确返回 0 tick 的元素");
+        }
     }
 }

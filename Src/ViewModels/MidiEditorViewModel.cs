@@ -38,6 +38,8 @@ public enum HorizontalMoveDirection
 public partial class MidiEditorViewModel : IMidiFormatable
 {
     private bool _isSynchronizingTrackAudioState;
+    private readonly object _activePlaybackOutputGate = new();
+    private MidiOut? _activePlaybackOutput;
 
     // 分辨率
     [VeloxProperty] private int _pPQN = 480;
@@ -336,6 +338,22 @@ public partial class MidiEditorViewModel : IMidiFormatable
         SynchronizeTrackAudioState(changedTrack.Solo ? changedTrack : null, changedTrack.Solo);
     }
 
+    internal void HandleTrackMutedStateChanged(MidiTrackViewModel changedTrack, bool oldValue, bool newValue)
+    {
+        if (_isSynchronizingTrackAudioState || oldValue == newValue)
+        {
+            return;
+        }
+
+        if (IsTrackAudible(changedTrack))
+        {
+            PrimeTrackPlayback(changedTrack, NowTime);
+            return;
+        }
+
+        SilenceTrackPlayback(changedTrack);
+    }
+
     internal void SetTrackSoloState(MidiTrackViewModel targetTrack, bool isSoloEnabled)
     {
         SynchronizeTrackAudioState(isSoloEnabled ? targetTrack : null, isSoloEnabled, clearAllSoloTracks: !isSoloEnabled, restoreMutedTracksWhenClearingSolo: true);
@@ -361,6 +379,8 @@ public partial class MidiEditorViewModel : IMidiFormatable
         {
             return;
         }
+
+        var previousAudibility = Tracks.ToDictionary(track => track, IsTrackAudible);
 
         _isSynchronizingTrackAudioState = true;
         try
@@ -421,6 +441,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
 
         NotifyTrackSoloStateChanged();
+        SynchronizePlaybackAudibility(previousAudibility);
     }
 
     #endregion
@@ -1550,6 +1571,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         await Task.Run(async () =>
         {
             using var midiOut = new MidiOut(0);
+            long currentLogicalTick = NowTime;
 
             try
             {
@@ -1562,25 +1584,29 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
                 // 2. 关键优化：在计时开始前完成所有初始化
                 long initialTick = NowTime;
-                foreach (var track in Tracks)
+                currentLogicalTick = initialTick;
+                SetActivePlaybackOutput(midiOut);
+                lock (_activePlaybackOutputGate)
                 {
-                    if (!IsTrackAudible(track)) continue;
-                    track.ExecuteMidiCommand.Execute(Tuple.Create(initialTick, midiOut));
+                    foreach (var track in Tracks)
+                    {
+                        if (!IsTrackAudible(track)) continue;
+                        track.InitializePlayback(midiOut, initialTick);
+                    }
                 }
 
                 // 3. 立即启动高精度计时器
                 var playbackStopwatch = Stopwatch.StartNew();
-                long playbackStartTick = initialTick;
+                double targetPhysicalTimeMs = 0;
+                double lastUiUpdateTimeMs = 0;
 
                 // 4. 进入主播放循环，严格保持1-tick步进
-                long currentLogicalTick = initialTick;
-
                 while (!cts.IsCancellationRequested && currentLogicalTick < MaxTime)
                 {
                     long nextLogicalTick = currentLogicalTick + 1; // 严格每次前进1个tick
 
                     // 计算目标时间和已用时间
-                    double targetPhysicalTimeMs = (nextLogicalTick - playbackStartTick) * TickTime;
+                    targetPhysicalTimeMs += GetTickDurationMilliseconds(currentLogicalTick);
                     double elapsedPhysicalTimeMs = playbackStopwatch.Elapsed.TotalMilliseconds;
                     double waitTimeMs = targetPhysicalTimeMs - elapsedPhysicalTimeMs;
 
@@ -1597,20 +1623,31 @@ public partial class MidiEditorViewModel : IMidiFormatable
                             (int)(waitTimeMs * 1000), cts.Token);
                     }
 
-                    // 6. 更新UI状态
-                    Application.Current.Dispatcher.Invoke(() =>
+                    // 6. 发送当前tick的MIDI事件
+                    lock (_activePlaybackOutputGate)
                     {
-                        if (!cts.IsCancellationRequested) NowTime = nextLogicalTick;
-                    });
-
-                    // 7. 发送当前tick的MIDI事件
-                    foreach (var track in Tracks)
-                    {
-                        if (!IsTrackAudible(track)) continue;
-                        track.ExecuteMidiCommand.Execute(Tuple.Create(nextLogicalTick, midiOut));
+                        foreach (var track in Tracks)
+                        {
+                            track.ExecutePlaybackTick(midiOut, nextLogicalTick, IsTrackAudible(track));
+                        }
                     }
 
                     currentLogicalTick = nextLogicalTick;
+
+                    // 7. 节流更新UI状态，避免播放初期因频繁同步导致突进
+                    elapsedPhysicalTimeMs = playbackStopwatch.Elapsed.TotalMilliseconds;
+                    if (elapsedPhysicalTimeMs - lastUiUpdateTimeMs >= 16.0 || currentLogicalTick >= MaxTime)
+                    {
+                        long uiTick = currentLogicalTick;
+                        _ = Application.Current.Dispatcher.BeginInvoke(() =>
+                        {
+                            if (IsPlaying && !cts.IsCancellationRequested)
+                            {
+                                NowTime = uiTick;
+                            }
+                        });
+                        lastUiUpdateTimeMs = elapsedPhysicalTimeMs;
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -1624,13 +1661,19 @@ public partial class MidiEditorViewModel : IMidiFormatable
             finally
             {
                 // 发送所有音符关闭消息
-                foreach (var track in Tracks)
+                lock (_activePlaybackOutputGate)
                 {
-                    midiOut.Send(new ControlChangeEvent(0, track.Channel, MidiController.AllNotesOff, 0).GetAsShortMessage());
+                    foreach (var track in Tracks)
+                    {
+                        SendTrackPanicMessages(midiOut, track);
+                    }
+
+                    _activePlaybackOutput = null;
                 }
                 playbackCompleted.Set();
                 Application.Current?.Dispatcher?.Invoke(() =>
                 {
+                    NowTime = currentLogicalTick;
                     IsEnabled = true;
                     IsPlaying = false;
                 });
@@ -1672,6 +1715,71 @@ public partial class MidiEditorViewModel : IMidiFormatable
     }
 
     #endregion
+
+    private void SetActivePlaybackOutput(MidiOut? midiOut)
+    {
+        lock (_activePlaybackOutputGate)
+        {
+            _activePlaybackOutput = midiOut;
+        }
+    }
+
+    private void SynchronizePlaybackAudibility(IReadOnlyDictionary<MidiTrackViewModel, bool> previousAudibility)
+    {
+        foreach (var track in Tracks)
+        {
+            bool wasAudible = previousAudibility.TryGetValue(track, out bool value) && value;
+            bool isAudible = IsTrackAudible(track);
+
+            if (wasAudible && !isAudible)
+            {
+                SilenceTrackPlayback(track);
+            }
+            else if (!wasAudible && isAudible)
+            {
+                PrimeTrackPlayback(track, NowTime);
+            }
+        }
+    }
+
+    private void PrimeTrackPlayback(MidiTrackViewModel track, long tick)
+    {
+        lock (_activePlaybackOutputGate)
+        {
+            if (_activePlaybackOutput is null)
+            {
+                return;
+            }
+
+            track.InitializePlayback(_activePlaybackOutput, Math.Max(0, tick));
+        }
+    }
+
+    private void SilenceTrackPlayback(MidiTrackViewModel track)
+    {
+        lock (_activePlaybackOutputGate)
+        {
+            if (_activePlaybackOutput is null)
+            {
+                return;
+            }
+
+            SendTrackPanicMessages(_activePlaybackOutput, track);
+        }
+    }
+
+    private static void SendTrackPanicMessages(MidiOut midiOut, MidiTrackViewModel track)
+    {
+        midiOut.Send(new ControlChangeEvent(0, track.Channel, MidiController.Sustain, 0).GetAsShortMessage());
+        midiOut.Send(new ControlChangeEvent(0, track.Channel, MidiController.AllNotesOff, 0).GetAsShortMessage());
+        midiOut.Send(MidiMessage.ChangeControl(120, 0, track.Channel).RawData);
+    }
+
+    private double GetTickDurationMilliseconds(long tick)
+    {
+        int bpm = Tempos.FindFirstAtOrBefore(tick)?.BPM ?? BPM;
+        return (60000.0d / Math.Max(1, bpm)) / PPQN;
+    }
 
     #region [Helper] 格式互转
 

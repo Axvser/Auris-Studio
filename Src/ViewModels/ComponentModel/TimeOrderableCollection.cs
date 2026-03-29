@@ -209,31 +209,37 @@ namespace Auris_Studio.ViewModels.ComponentModel
 
         public T? FindFirstAtOrAfter(long tick)
         {
-            var firstStart = _timeBuckets.Keys.FirstOrDefault(k => k >= tick);
-            if (firstStart == default)
+            foreach (var startTick in _timeBuckets.Keys)
             {
-                return null;
+                if (startTick < tick)
+                {
+                    continue;
+                }
+
+                if (_timeBuckets.TryGetValue(startTick, out var bucket) && bucket.Count > 0)
+                {
+                    return bucket[0];
+                }
             }
 
-            if (_timeBuckets.TryGetValue(firstStart, out var bucket) && bucket.Count > 0)
-            {
-                return bucket[0];
-            }
             return null;
         }
 
         public T? FindFirstAtOrBefore(long tick)
         {
-            var lastStart = _timeBuckets.Keys.LastOrDefault(k => k <= tick);
-            if (lastStart == default)
+            foreach (var startTick in _timeBuckets.Keys.Reverse())
             {
-                return null;
+                if (startTick > tick)
+                {
+                    continue;
+                }
+
+                if (_timeBuckets.TryGetValue(startTick, out var bucket) && bucket.Count > 0)
+                {
+                    return bucket[0];
+                }
             }
 
-            if (_timeBuckets.TryGetValue(lastStart, out var bucket) && bucket.Count > 0)
-            {
-                return bucket[0];
-            }
             return null;
         }
 
