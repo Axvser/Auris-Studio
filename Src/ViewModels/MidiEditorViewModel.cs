@@ -586,6 +586,71 @@ public partial class MidiEditorViewModel : IMidiFormatable
         return finalTicks;
     }
 
+    public void SetTempoBpm(int bpm)
+    {
+        bpm = Math.Clamp(bpm, 20, 300);
+
+        long targetTick = Math.Max(0, NowTime);
+        var exactTempo = Tempos.FirstOrDefault(t => t.AbsoluteTime == targetTick);
+        if (exactTempo is not null)
+        {
+            exactTempo.BPM = bpm;
+            BPM = bpm;
+            return;
+        }
+
+        var tempoVm = new TempoEventViewModel
+        {
+            AbsoluteTime = targetTick,
+            BPM = bpm,
+        };
+        Tempos.Add(tempoVm);
+        BPM = bpm;
+    }
+
+    public void AdjustTempoBpm(int delta) => SetTempoBpm(BPM + delta);
+
+    public void SetTimeSignature(int numerator, int denominator)
+    {
+        if (numerator <= 0 || !IsSupportedTimeSignatureDenominator(denominator))
+        {
+            return;
+        }
+
+        long targetTick = Math.Max(0, NowTime);
+        var exactTimeSignature = Tss.FirstOrDefault(t => t.AbsoluteTime == targetTick);
+        if (exactTimeSignature is not null)
+        {
+            exactTimeSignature.Numerator = numerator;
+            exactTimeSignature.Denominator = denominator;
+            Numerator = numerator;
+            Denominator = denominator;
+            return;
+        }
+
+        var timeSignatureVm = new TimeSignatureEventViewModel
+        {
+            AbsoluteTime = targetTick,
+            Numerator = numerator,
+            Denominator = denominator,
+        };
+        Tss.Add(timeSignatureVm);
+        Numerator = numerator;
+        Denominator = denominator;
+    }
+
+    public void SetAlignmentOption(Alignment alignment)
+    {
+        if ((alignment & Alignment.NoteValueMask) == 0)
+        {
+            return;
+        }
+
+        Alignment = alignment;
+    }
+
+    private static bool IsSupportedTimeSignatureDenominator(int denominator) => denominator is 1 or 2 or 4 or 8 or 16 or 32;
+
     private long AlignTimeNearest(long time)
     {
         if (!UseSnap) return Math.Max(0, time);

@@ -63,6 +63,16 @@ namespace Auris_Studio.Views
                 {
                     FollowButton.ButtonContent = vm.ProgressFollow ? logo_hand : logo_auto;
                 }
+
+                if (e.PropertyName == nameof(MidiEditorViewModel.BPM)
+                    || e.PropertyName == nameof(MidiEditorViewModel.Numerator)
+                    || e.PropertyName == nameof(MidiEditorViewModel.Denominator)
+                    || e.PropertyName == nameof(MidiEditorViewModel.Alignment)
+                    || e.PropertyName == nameof(MidiEditorViewModel.UseSnap)
+                    || e.PropertyName == nameof(MidiEditorViewModel.DragBehavior))
+                {
+                    RefreshEditorPreferenceButtons(vm);
+                }
             }
         }
 
@@ -358,6 +368,21 @@ namespace Auris_Studio.Views
             RefreshEditorPreferenceButtons(vm);
         }
 
+        private void TempoButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowEditorSettingsDialog();
+        }
+
+        private void TimeSignatureButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowEditorSettingsDialog();
+        }
+
+        private void AlignmentButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowEditorSettingsDialog();
+        }
+
         private void DragModeButton_Click(object sender, RoutedEventArgs e)
         {
             if (FindDragModePopup() is Popup popup)
@@ -388,10 +413,101 @@ namespace Auris_Studio.Views
                 snapButton.ButtonContent = vm.UseSnap ? "Snap · On" : "Snap · Off";
             }
 
+            if (FindTempoButton() is Views.Button tempoButton)
+            {
+                tempoButton.ButtonContent = $"BPM · {vm.BPM}";
+            }
+
+            if (FindTimeSignatureButton() is Views.Button timeSignatureButton)
+            {
+                timeSignatureButton.ButtonContent = $"Time · {vm.Numerator}/{vm.Denominator}";
+            }
+
+            if (FindAlignmentButton() is Views.Button alignmentButton)
+            {
+                alignmentButton.ButtonContent = $"Grid · {GetAlignmentText(vm.Alignment)}";
+            }
+
             if (FindDragModeButton() is Views.Button dragModeButton)
             {
                 dragModeButton.ButtonContent = $"Drag · {GetDragBehaviorText(vm.DragBehavior)} ▾";
             }
+        }
+
+        private void ShowEditorSettingsDialog()
+        {
+            if (DataContext is not MidiEditorViewModel vm)
+            {
+                return;
+            }
+
+            vm.StopCommand.Execute(null);
+
+            var dialog = new MidiEditorSettingsWindow(vm.BPM, vm.Numerator, vm.Denominator, vm.Alignment)
+            {
+                Owner = Window.GetWindow(this)
+            };
+
+            dialog.ShowDialog();
+
+            vm.SetTempoBpm(dialog.SelectedBpm);
+            vm.SetTimeSignature(dialog.SelectedNumerator, dialog.SelectedDenominator);
+            vm.SetAlignmentOption(dialog.SelectedAlignment);
+            RefreshEditorPreferenceButtons(vm);
+        }
+
+        private static Alignment GetAlignmentNoteValuePart(Alignment alignment)
+        {
+            var noteValue = alignment & Alignment.NoteValueMask;
+            return noteValue == 0 ? Alignment.EighthNote : noteValue;
+        }
+
+        private static Alignment GetAlignmentModifierPart(Alignment alignment) => alignment & Alignment.ModifierMask;
+
+        private static Alignment GetAlignmentTupletPart(Alignment alignment) => alignment & Alignment.TupletMask;
+
+        private static string GetAlignmentText(Alignment alignment)
+        {
+            string noteValueText = GetAlignmentNoteValuePart(alignment) switch
+            {
+                Alignment.DoubleWholeNote => "2/1",
+                Alignment.WholeNote => "1/1",
+                Alignment.HalfNote => "1/2",
+                Alignment.QuarterNote => "1/4",
+                Alignment.EighthNote => "1/8",
+                Alignment.SixteenthNote => "1/16",
+                Alignment.ThirtySecondNote => "1/32",
+                Alignment.SixtyFourthNote => "1/64",
+                Alignment.OneTwentyEighthNote => "1/128",
+                _ => "1/8",
+            };
+
+            var parts = new List<string> { noteValueText };
+
+            switch (GetAlignmentModifierPart(alignment))
+            {
+                case Alignment.Dot:
+                    parts.Add("Dot");
+                    break;
+                case Alignment.DoubleDot:
+                    parts.Add("Double Dot");
+                    break;
+            }
+
+            switch (GetAlignmentTupletPart(alignment))
+            {
+                case Alignment.Triplet:
+                    parts.Add("Triplet");
+                    break;
+                case Alignment.Quintuplet:
+                    parts.Add("Quintuplet");
+                    break;
+                case Alignment.Septuplet:
+                    parts.Add("Septuplet");
+                    break;
+            }
+
+            return string.Join(" · ", parts);
         }
 
         private static string GetDragBehaviorText(NoteDragBehavior dragBehavior) => dragBehavior switch
@@ -402,6 +518,12 @@ namespace Auris_Studio.Views
         };
 
         private Views.Button? FindSnapButton() => FindName("SnapButton") as Views.Button;
+
+        private Views.Button? FindTempoButton() => FindName("TempoButton") as Views.Button;
+
+        private Views.Button? FindTimeSignatureButton() => FindName("TimeSignatureButton") as Views.Button;
+
+        private Views.Button? FindAlignmentButton() => FindName("AlignmentButton") as Views.Button;
 
         private Views.Button? FindDragModeButton() => FindName("DragModeButton") as Views.Button;
 

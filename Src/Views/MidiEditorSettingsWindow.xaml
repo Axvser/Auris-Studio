@@ -1,0 +1,196 @@
+<Window x:Class="Auris_Studio.Views.MidiEditorSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Auris_Studio.Views"
+        mc:Ignorable="d"
+        Title="Editor Settings"
+        Width="500"
+        Height="520"
+        SizeToContent="Manual"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{Binding RelativeSource={RelativeSource Self}, Path=Background}"
+        Foreground="{Binding RelativeSource={RelativeSource Self}, Path=Foreground}">
+    <Window.Resources>
+        <Style TargetType="local:Button">
+            <Setter Property="Width" Value="60"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="ContentMargin" Value="8,4,8,4"/>
+            <Setter Property="BlurRadius" Value="12"/>
+            <Setter Property="Margin" Value="0,0,4,4"/>
+            <Setter Property="UseHoverForeground" Value="False"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="46"/>
+            <RowDefinition Height="118"/>
+            <RowDefinition Height="286"/>
+            <RowDefinition Height="34"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock FontSize="17"
+                       FontWeight="SemiBold"
+                       Text="Editor Settings"/>
+            <TextBlock Margin="0,2,0,0"
+                       FontSize="11"
+                       Foreground="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SecondaryForeground}"
+                       Text="Edit BPM, time signature, and alignment."/>
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <local:TrackParameterSlider x:Name="BpmSlider"
+                                        Grid.Column="0"
+                                        Height="104"
+                                        Label="BPM"
+                                        Minimum="20"
+                                        Maximum="300"/>
+
+            <Border Grid.Column="2"
+                    Height="104"
+                    Padding="10"
+                    Background="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=CardBackground}"
+                    CornerRadius="16">
+                <StackPanel>
+                    <TextBlock FontWeight="SemiBold"
+                               Text="Time Signature"/>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox x:Name="NumeratorComboBox"
+                                  Height="28"
+                                  SelectionChanged="TimeSignatureComboBox_SelectionChanged"/>
+                        <ComboBox x:Name="DenominatorComboBox"
+                                  Grid.Column="2"
+                                  Height="28"
+                                  SelectionChanged="TimeSignatureComboBox_SelectionChanged"/>
+                    </Grid>
+                    <TextBlock x:Name="TimeSignaturePreviewText"
+                               Margin="0,8,0,0"
+                               FontWeight="SemiBold"
+                               Text="4/4"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Margin="0,10,0,0"
+                Height="276"
+                Padding="10"
+                Background="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=CardBackground}"
+                CornerRadius="16">
+            <StackPanel>
+                <TextBlock FontWeight="SemiBold"
+                           Text="Alignment"/>
+                <TextBlock x:Name="AlignmentPreviewText"
+                           Margin="0,6,0,0"
+                           FontWeight="SemiBold"
+                           Text="1/8"/>
+
+                <ScrollViewer Margin="0,8,0,0"
+                              Height="218"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <Border Padding="10"
+                                Background="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=PanelBackground}"
+                                CornerRadius="14">
+                            <StackPanel>
+                                <TextBlock FontSize="11"
+                                           Foreground="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SecondaryForeground}"
+                                           Text="Note Value"/>
+                                <WrapPanel Margin="0,6,0,0" ItemHeight="28" ItemWidth="60">
+                                    <local:Button x:Name="AlignmentNoteDoubleWholeButton" ButtonContent="2/1" Parameter="DoubleWhole" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteWholeButton" ButtonContent="1/1" Parameter="Whole" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteHalfButton" ButtonContent="1/2" Parameter="Half" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteQuarterButton" ButtonContent="1/4" Parameter="Quarter" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteEighthButton" ButtonContent="1/8" Parameter="Eighth" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteSixteenthButton" ButtonContent="1/16" Parameter="Sixteenth" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteThirtySecondButton" ButtonContent="1/32" Parameter="ThirtySecond" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteSixtyFourthButton" ButtonContent="1/64" Parameter="SixtyFourth" Click="AlignmentNoteValueButton_Click"/>
+                                    <local:Button x:Name="AlignmentNoteOneTwentyEighthButton" ButtonContent="1/128" Parameter="OneTwentyEighth" Click="AlignmentNoteValueButton_Click"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0"
+                                    Padding="10"
+                                    Background="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=PanelBackground}"
+                                    CornerRadius="14">
+                                <StackPanel>
+                                    <TextBlock FontSize="11"
+                                               Foreground="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SecondaryForeground}"
+                                               Text="Modifier"/>
+                                    <WrapPanel Margin="0,6,0,0" ItemHeight="28" ItemWidth="60">
+                                        <local:Button x:Name="AlignmentModifierNoneButton" ButtonContent="Off" Parameter="None" Click="AlignmentModifierButton_Click"/>
+                                        <local:Button x:Name="AlignmentModifierDotButton" ButtonContent="Dot" Parameter="Dot" Click="AlignmentModifierButton_Click"/>
+                                        <local:Button x:Name="AlignmentModifierDoubleDotButton" ButtonContent="2Dot" Parameter="DoubleDot" Click="AlignmentModifierButton_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Column="2"
+                                    Padding="10"
+                                    Background="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=PanelBackground}"
+                                    CornerRadius="14">
+                                <StackPanel>
+                                    <TextBlock FontSize="11"
+                                               Foreground="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SecondaryForeground}"
+                                               Text="Tuplet"/>
+                                    <WrapPanel Margin="0,6,0,0" ItemHeight="28" ItemWidth="60">
+                                        <local:Button x:Name="AlignmentTupletNoneButton" ButtonContent="Off" Parameter="None" Click="AlignmentTupletButton_Click"/>
+                                        <local:Button x:Name="AlignmentTupletTripletButton" ButtonContent="Tri" Parameter="Triplet" Click="AlignmentTupletButton_Click"/>
+                                        <local:Button x:Name="AlignmentTupletQuintupletButton" ButtonContent="Quint" Parameter="Quintuplet" Click="AlignmentTupletButton_Click"/>
+                                        <local:Button x:Name="AlignmentTupletSeptupletButton" ButtonContent="Sept" Parameter="Septuplet" Click="AlignmentTupletButton_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="3" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock VerticalAlignment="Center"
+                       FontSize="11"
+                       Foreground="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=SecondaryForeground}"
+                       Text="Apply writes the settings to the current position."/>
+            <local:Button Grid.Column="1"
+                          Width="74"
+                          Margin="0,0,6,0"
+                          ButtonContent="Cancel"
+                          Click="CancelButton_Click"/>
+            <local:Button Grid.Column="2"
+                          Width="74"
+                          Margin="0"
+                          ButtonContent="Apply"
+                          Click="ApplyButton_Click"/>
+        </Grid>
+    </Grid>
+</Window>

@@ -177,6 +177,62 @@ namespace Test
         }
 
         [TestMethod]
+        public void SetTempoBpm_ShouldCreateTempoEventAtCurrentTimeAndUpdateBpm()
+        {
+            ReflectionHelper.SetProperty(_viewModel, "NowTime", 240L);
+
+            _viewModel.SetTempoBpm(140);
+
+            Assert.AreEqual(140, _viewModel.BPM, "设置 BPM 后当前速度应立即更新");
+            Assert.AreEqual(1, _viewModel.Tempos.Count, "缺失速度事件时应在当前位置创建速度事件");
+            Assert.AreEqual(240L, _viewModel.Tempos.Single().AbsoluteTime, "新速度事件应落在当前时间位置");
+            Assert.AreEqual(140, _viewModel.Tempos.Single().BPM, "新速度事件应记录目标 BPM");
+        }
+
+        [TestMethod]
+        public void SetTimeSignature_ShouldCreateEventAtCurrentTimeAndUpdateCurrentSignature()
+        {
+            ReflectionHelper.SetProperty(_viewModel, "NowTime", 480L);
+
+            _viewModel.SetTimeSignature(6, 8);
+
+            Assert.AreEqual(6, _viewModel.Numerator, "设置拍号后分子应立即更新");
+            Assert.AreEqual(8, _viewModel.Denominator, "设置拍号后分母应立即更新");
+            Assert.AreEqual(1, _viewModel.Tss.Count, "缺失拍号事件时应在当前位置创建拍号事件");
+            Assert.AreEqual(480L, _viewModel.Tss.Single().AbsoluteTime, "新拍号事件应落在当前时间位置");
+        }
+
+        [TestMethod]
+        public void SetAlignmentOption_ShouldSwitchAlignmentDirectly()
+        {
+            _viewModel.SetAlignmentOption(Alignment.EighthNote | Alignment.Triplet);
+
+            Assert.AreEqual(Alignment.EighthNote | Alignment.Triplet, _viewModel.Alignment, "工具栏选择时值后应立即更新当前对齐策略");
+            Assert.AreEqual(160L, _viewModel.GetAlignmentStep(), "八分三连音在 480 PPQN 下应换算为 160 tick");
+        }
+
+        [TestMethod]
+        public void SetAlignmentOption_ShouldSupportModifierAndTupletComposition()
+        {
+            _viewModel.SetAlignmentOption(Alignment.SixteenthNote | Alignment.Dot | Alignment.Quintuplet);
+
+            Assert.AreEqual(Alignment.SixteenthNote | Alignment.Dot | Alignment.Quintuplet, _viewModel.Alignment, "组合选择时应保留时值、附点和连音三部分");
+            Assert.AreEqual(144L, _viewModel.GetAlignmentStep(), "附点十六分五连音在 480 PPQN 下应换算为 144 tick");
+        }
+
+        [TestMethod]
+        public void GetAlignmentStep_ShouldSupportExtendedNoteValueRange()
+        {
+            _viewModel.PPQN = 480;
+
+            _viewModel.Alignment = Alignment.DoubleWholeNote;
+            Assert.AreEqual(3840L, _viewModel.GetAlignmentStep(), "二全音符应覆盖枚举支持的长时值范围");
+
+            _viewModel.Alignment = Alignment.OneTwentyEighthNote;
+            Assert.AreEqual(15L, _viewModel.GetAlignmentStep(), "一百二十八分音符应覆盖枚举支持的短时值范围");
+        }
+
+        [TestMethod]
         public void VerticalDominantMove_ShouldNotAccidentallyShiftNoteHorizontally()
         {
             var note = new NoteEventViewModel
