@@ -137,35 +137,41 @@ public partial class MidiTrackViewModel
     {
         if (parameter is not Tuple<long, MidiOut> tuple) return;
 
-        InitializePlayback(tuple.Item2, tuple.Item1);
-        ExecutePlaybackTick(tuple.Item2, tuple.Item1, isAudible: true);
+        InitializePlayback(tuple.Item1, tuple.Item2.Send);
+        ExecutePlaybackTick(tuple.Item1, isAudible: true, tuple.Item2.Send);
     }
 
     internal void InitializePlayback(MidiOut midiOut, long tick)
+        => InitializePlayback(tick, midiOut.Send);
+
+    internal void InitializePlayback(long tick, Action<int> sendRawMessage)
     {
         Patch.IsDrum(out int programNumber);
-        midiOut.Send(MidiMessage.ChangePatch(programNumber, Channel).RawData);
+        sendRawMessage(MidiMessage.ChangePatch(programNumber, Channel).RawData);
 
-        SendCurrentControlState(midiOut, tick);
+        SendCurrentControlState(tick, sendRawMessage);
 
         var pitchWheel = Pwcs.FindFirstAtOrBefore(tick);
         if (pitchWheel is not null)
         {
-            midiOut.Send(new PitchWheelChangeEvent(0, Channel, pitchWheel.Pitch).GetAsShortMessage());
+            sendRawMessage(new PitchWheelChangeEvent(0, Channel, pitchWheel.Pitch).GetAsShortMessage());
         }
 
         var channelAfterTouch = Cats.FindFirstAtOrBefore(tick);
         if (channelAfterTouch is not null)
         {
-            midiOut.Send(new ChannelAfterTouchEvent(0, Channel, channelAfterTouch.AfterTouchPressure).GetAsShortMessage());
+            sendRawMessage(new ChannelAfterTouchEvent(0, Channel, channelAfterTouch.AfterTouchPressure).GetAsShortMessage());
         }
     }
 
     internal void ExecutePlaybackTick(MidiOut midiOut, long tick, bool isAudible)
+        => ExecutePlaybackTick(tick, isAudible, midiOut.Send);
+
+    internal void ExecutePlaybackTick(long tick, bool isAudible, Action<int> sendRawMessage)
     {
         foreach (var endNote in Notes.QueryAtEnd(tick))
         {
-            endNote.StopNoteCommand.Execute(midiOut);
+            sendRawMessage(MidiMessage.StopNote((int)endNote.Note, endNote.OnVelocity, Channel).RawData);
         }
 
         if (!isAudible)
@@ -175,22 +181,22 @@ public partial class MidiTrackViewModel
 
         foreach (var controlEvent in Ctrls.QueryAtStart(tick))
         {
-            midiOut.Send(MidiMessage.ChangeControl((int)controlEvent.MidiController, controlEvent.Value, Channel).RawData);
+            sendRawMessage(MidiMessage.ChangeControl((int)controlEvent.MidiController, controlEvent.Value, Channel).RawData);
         }
 
         foreach (var pitchWheel in Pwcs.QueryAtStart(tick))
         {
-            midiOut.Send(new PitchWheelChangeEvent(tick, Channel, pitchWheel.Pitch).GetAsShortMessage());
+            sendRawMessage(new PitchWheelChangeEvent(tick, Channel, pitchWheel.Pitch).GetAsShortMessage());
         }
 
         foreach (var channelAfterTouch in Cats.QueryAtStart(tick))
         {
-            midiOut.Send(new ChannelAfterTouchEvent(tick, Channel, channelAfterTouch.AfterTouchPressure).GetAsShortMessage());
+            sendRawMessage(new ChannelAfterTouchEvent(tick, Channel, channelAfterTouch.AfterTouchPressure).GetAsShortMessage());
         }
 
         foreach (var startNote in Notes.QueryAtStart(tick))
         {
-            startNote.StartNoteCommand.Execute(midiOut);
+            sendRawMessage(MidiMessage.StartNote((int)startNote.Note, startNote.OnVelocity, Channel).RawData);
         }
     }
 
@@ -466,6 +472,7 @@ public partial class MidiTrackViewModel
         {
             existing.Value = clamped;
             NotifyPrimaryControlPropertyChanged(midiController);
+            Parent?.HandleTrackPrimaryControlChanged(this, midiController, clamped);
             return;
         }
 
@@ -478,25 +485,26 @@ public partial class MidiTrackViewModel
         };
         Ctrls.Add(controlVm);
         NotifyPrimaryControlPropertyChanged(midiController);
+        Parent?.HandleTrackPrimaryControlChanged(this, midiController, clamped);
     }
 
-    private void SendCurrentControlState(MidiOut midiOut, long tick)
+    private void SendCurrentControlState(long tick, Action<int> sendRawMessage)
     {
-        SendControlChange(midiOut, Volumes.FindFirstAtOrBefore(tick));
-        SendControlChange(midiOut, Pans.FindFirstAtOrBefore(tick));
-        SendControlChange(midiOut, Sustains.FindFirstAtOrBefore(tick));
-        SendControlChange(midiOut, Expressions.FindFirstAtOrBefore(tick));
-        SendControlChange(midiOut, Modulations.FindFirstAtOrBefore(tick));
+        SendControlChange(Volumes.FindFirstAtOrBefore(tick), sendRawMessage);
+        SendControlChange(Pans.FindFirstAtOrBefore(tick), sendRawMessage);
+        SendControlChange(Sustains.FindFirstAtOrBefore(tick), sendRawMessage);
+        SendControlChange(Expressions.FindFirstAtOrBefore(tick), sendRawMessage);
+        SendControlChange(Modulations.FindFirstAtOrBefore(tick), sendRawMessage);
     }
 
-    private void SendControlChange(MidiOut midiOut, ControlChangeEventViewModel? controlEvent)
+    private void SendControlChange(ControlChangeEventViewModel? controlEvent, Action<int> sendRawMessage)
     {
         if (controlEvent is null)
         {
             return;
         }
 
-        midiOut.Send(MidiMessage.ChangeControl((int)controlEvent.MidiController, controlEvent.Value, Channel).RawData);
+        sendRawMessage(MidiMessage.ChangeControl((int)controlEvent.MidiController, controlEvent.Value, Channel).RawData);
     }
 
     #endregion

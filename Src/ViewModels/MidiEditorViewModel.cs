@@ -39,7 +39,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
 {
     private bool _isSynchronizingTrackAudioState;
     private readonly object _activePlaybackOutputGate = new();
-    private MidiOut? _activePlaybackOutput;
+    private Action<int>? _activePlaybackMessageSink;
 
     // 分辨率
     [VeloxProperty] private int _pPQN = 480;
@@ -352,6 +352,19 @@ public partial class MidiEditorViewModel : IMidiFormatable
         }
 
         SilenceTrackPlayback(changedTrack);
+    }
+
+    internal void HandleTrackPrimaryControlChanged(MidiTrackViewModel changedTrack, MidiController midiController, int value)
+    {
+        lock (_activePlaybackOutputGate)
+        {
+            if (_activePlaybackMessageSink is null || !IsPlaying || !IsTrackAudible(changedTrack))
+            {
+                return;
+            }
+
+            _activePlaybackMessageSink(MidiMessage.ChangeControl((int)midiController, Math.Clamp(value, 0, 127), changedTrack.Channel).RawData);
+        }
     }
 
     internal void SetTrackSoloState(MidiTrackViewModel targetTrack, bool isSoloEnabled)
@@ -1591,7 +1604,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     foreach (var track in Tracks)
                     {
                         if (!IsTrackAudible(track)) continue;
-                        track.InitializePlayback(midiOut, initialTick);
+                        track.InitializePlayback(initialTick, midiOut.Send);
                     }
                 }
 
@@ -1628,7 +1641,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
                     {
                         foreach (var track in Tracks)
                         {
-                            track.ExecutePlaybackTick(midiOut, nextLogicalTick, IsTrackAudible(track));
+                            track.ExecutePlaybackTick(nextLogicalTick, IsTrackAudible(track), midiOut.Send);
                         }
                     }
 
@@ -1665,10 +1678,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
                 {
                     foreach (var track in Tracks)
                     {
-                        SendTrackPanicMessages(midiOut, track);
+                        SendTrackPanicMessages(midiOut.Send, track);
                     }
 
-                    _activePlaybackOutput = null;
+                    _activePlaybackMessageSink = null;
                 }
                 playbackCompleted.Set();
                 Application.Current?.Dispatcher?.Invoke(() =>
@@ -1720,7 +1733,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         lock (_activePlaybackOutputGate)
         {
-            _activePlaybackOutput = midiOut;
+            _activePlaybackMessageSink = midiOut is null ? null : midiOut.Send;
         }
     }
 
@@ -1746,12 +1759,12 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         lock (_activePlaybackOutputGate)
         {
-            if (_activePlaybackOutput is null)
+            if (_activePlaybackMessageSink is null)
             {
                 return;
             }
 
-            track.InitializePlayback(_activePlaybackOutput, Math.Max(0, tick));
+            track.InitializePlayback(Math.Max(0, tick), _activePlaybackMessageSink);
         }
     }
 
@@ -1759,20 +1772,20 @@ public partial class MidiEditorViewModel : IMidiFormatable
     {
         lock (_activePlaybackOutputGate)
         {
-            if (_activePlaybackOutput is null)
+            if (_activePlaybackMessageSink is null)
             {
                 return;
             }
 
-            SendTrackPanicMessages(_activePlaybackOutput, track);
+            SendTrackPanicMessages(_activePlaybackMessageSink, track);
         }
     }
 
-    private static void SendTrackPanicMessages(MidiOut midiOut, MidiTrackViewModel track)
+    private static void SendTrackPanicMessages(Action<int> sendRawMessage, MidiTrackViewModel track)
     {
-        midiOut.Send(new ControlChangeEvent(0, track.Channel, MidiController.Sustain, 0).GetAsShortMessage());
-        midiOut.Send(new ControlChangeEvent(0, track.Channel, MidiController.AllNotesOff, 0).GetAsShortMessage());
-        midiOut.Send(MidiMessage.ChangeControl(120, 0, track.Channel).RawData);
+        sendRawMessage(new ControlChangeEvent(0, track.Channel, MidiController.Sustain, 0).GetAsShortMessage());
+        sendRawMessage(new ControlChangeEvent(0, track.Channel, MidiController.AllNotesOff, 0).GetAsShortMessage());
+        sendRawMessage(MidiMessage.ChangeControl(120, 0, track.Channel).RawData);
     }
 
     private double GetTickDurationMilliseconds(long tick)

@@ -3,7 +3,9 @@ using Auris_Studio.ViewModels;
 using Auris_Studio.ViewModels.MidiEvents;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NAudio.Midi;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace Test;
 
@@ -60,5 +62,59 @@ public sealed class Test_MidiTrackViewModel
         Assert.AreEqual(Patch.DrumAcousticBassDrum, track.Patch, "从普通音色切到第10通道时应落到默认打击乐Patch");
         Assert.AreEqual("Acoustic Bass Drum", track.PatchDisplayName, "打击乐Patch显示名应去掉Drum前缀并按单词分隔");
         Assert.IsTrue(track.AvailablePatches.All(patch => patch.IsDrum(out _)), "第10通道的可选Patch列表应全部为打击乐范围");
+    }
+
+    [TestMethod]
+    public void InitializePlayback_ShouldUseUpdatedPrimaryControlValues()
+    {
+        var track = new MidiTrackViewModel { Channel = 3 };
+        track.Ctrls.Add(new ControlChangeEventViewModel
+        {
+            AbsoluteTime = 0,
+            MidiController = MidiController.MainVolume,
+            Value = 64,
+        });
+        track.Ctrls.Add(new ControlChangeEventViewModel
+        {
+            AbsoluteTime = 0,
+            MidiController = MidiController.Pan,
+            Value = 64,
+        });
+
+        track.Volume = 96;
+        track.Pan = 20;
+
+        List<int> sentMessages = [];
+        var initializePlayback = typeof(MidiTrackViewModel).GetMethod("InitializePlayback",
+            BindingFlags.NonPublic | BindingFlags.Instance,
+            binder: null,
+            types: [typeof(long), typeof(Action<int>)],
+            modifiers: null);
+        Assert.IsNotNull(initializePlayback, "测试需要访问内部播放初始化逻辑");
+        initializePlayback.Invoke(track, [240L, (Action<int>)sentMessages.Add]);
+
+        Assert.IsTrue(sentMessages.Contains(MidiMessage.ChangeControl((int)MidiController.MainVolume, 96, 3).RawData), "播放初始化时应读取并发送更新后的音量值");
+        Assert.IsTrue(sentMessages.Contains(MidiMessage.ChangeControl((int)MidiController.Pan, 20, 3).RawData), "播放初始化时应读取并发送更新后的声相值");
+    }
+
+    [TestMethod]
+    public void VolumeAndPan_Set_DuringPlayback_ShouldSendImmediateControlChanges()
+    {
+        var editor = new MidiEditorViewModel();
+        var track = new MidiTrackViewModel { Channel = 4 };
+        editor.Tracks.Add(track);
+
+        ReflectionHelper.SetProperty(editor, "IsPlaying", true);
+
+        List<int> sentMessages = [];
+        var sinkField = typeof(MidiEditorViewModel).GetField("_activePlaybackMessageSink", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(sinkField, "测试需要访问当前播放消息发送委托");
+        sinkField.SetValue(editor, (Action<int>)sentMessages.Add);
+
+        track.Volume = 88;
+        track.Pan = 12;
+
+        Assert.IsTrue(sentMessages.Contains(MidiMessage.ChangeControl((int)MidiController.MainVolume, 88, 4).RawData), "播放过程中拖动音量托条后，应立即向当前轨道发送新的音量控制消息");
+        Assert.IsTrue(sentMessages.Contains(MidiMessage.ChangeControl((int)MidiController.Pan, 12, 4).RawData), "播放过程中拖动声相托条后，应立即向当前轨道发送新的声相控制消息");
     }
 }
