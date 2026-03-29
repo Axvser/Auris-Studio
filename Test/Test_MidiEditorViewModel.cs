@@ -21,13 +21,8 @@ namespace Test
     public sealed class Test_MidiEditorViewModel
     {
         private MidiEditorViewModel? _viewModel;
-        private TestContext? _testContext;
 
-        public TestContext? TestContext
-        {
-            get { return _testContext; }
-            set { _testContext = value; }
-        }
+        public TestContext? TestContext { get; set; }
 
         [TestInitialize]
         public void TestInitialize()
@@ -49,8 +44,8 @@ namespace Test
             Assert.AreEqual(4, _viewModel.Numerator, "默认拍号分子应为4");
             Assert.AreEqual(4, _viewModel.Denominator, "默认拍号分母应为4");
             Assert.AreEqual(Alignment.EighthNote, _viewModel.Alignment, "默认对齐策略应为八分音符");
-            Assert.IsTrue(_viewModel.UseSnap, "默认应启用音符对齐");
-            Assert.AreEqual(NoteDragBehavior.VerticalPriority, _viewModel.DragBehavior, "默认拖拽模式应为上下优先");
+            Assert.IsFalse(_viewModel.UseSnap, "默认应关闭音符对齐，交由工具栏按钮显式开启");
+            Assert.AreEqual(NoteDragBehavior.Free, _viewModel.DragBehavior, "默认拖拽模式应为自由模式");
             Assert.AreEqual(string.Empty, _viewModel.Lyric, "默认歌词应为空字符串");
             Assert.IsTrue(_viewModel.IsEnabled, "默认应启用交互");
             Assert.IsNotNull(_viewModel.Tracks, "音轨集合不应为null");
@@ -206,6 +201,7 @@ namespace Test
         public void MoveNoteRight_ShouldSnapUsingRightEdge()
         {
             _viewModel.Alignment = Alignment.QuarterNote;
+            ReflectionHelper.SetProperty(_viewModel, "UseSnap", true);
 
             var note = new NoteEventViewModel
             {
@@ -228,6 +224,7 @@ namespace Test
         public void MoveNoteDirectionChange_ShouldSwitchSnapEdgeWithCurrentDirection()
         {
             _viewModel.Alignment = Alignment.QuarterNote;
+            ReflectionHelper.SetProperty(_viewModel, "UseSnap", true);
 
             var note = new NoteEventViewModel
             {
@@ -252,6 +249,7 @@ namespace Test
         public void FreeDragMode_ShouldAllowHorizontalAndVerticalChangesTogether()
         {
             _viewModel.Alignment = Alignment.QuarterNote;
+            ReflectionHelper.SetProperty(_viewModel, "UseSnap", true);
             ReflectionHelper.SetProperty(_viewModel, "DragBehavior", NoteDragBehavior.Free);
 
             var note = new NoteEventViewModel
