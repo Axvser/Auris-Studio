@@ -50,6 +50,31 @@ public sealed class Test_MidiTrackViewModel
     }
 
     [TestMethod]
+    public void DuplicateControlEvents_WithSameControllerTimeAndValue_ShouldCollapseToSingleEvent()
+    {
+        var track = new MidiTrackViewModel();
+        var first = new ControlChangeEventViewModel
+        {
+            AbsoluteTime = 0,
+            MidiController = MidiController.MainVolume,
+            Value = 100,
+        };
+        var duplicate = new ControlChangeEventViewModel
+        {
+            AbsoluteTime = 0,
+            MidiController = MidiController.MainVolume,
+            Value = 100,
+        };
+
+        track.Ctrls.Add(first);
+        track.Ctrls.Add(duplicate);
+
+        Assert.AreEqual(1, track.Ctrls.Count, "相同控制器、相同时间、相同值的控制器事件应自动去重");
+        Assert.AreEqual(1, track.Volumes.Count, "去重后分类集合中也应只保留一个事件");
+        Assert.AreEqual(100, track.Volume, "去重后主音量值应保持不变");
+    }
+
+    [TestMethod]
     public void Channel10_ShouldUsePercussionPatchRangeAndDisplayName()
     {
         var track = new MidiTrackViewModel

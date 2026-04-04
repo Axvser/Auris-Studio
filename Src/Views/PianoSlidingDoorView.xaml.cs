@@ -104,6 +104,7 @@ namespace Auris_Studio.Views
             PianoKeysScrollViewer.ScrollToHorizontalOffset(e);
             BackDrawLineScrollViewer.ScrollToHorizontalOffset(e);
             TickScrollViewer.ScrollToHorizontalOffset(e);
+            ControlCurveEditor.SetHorizontalOffset(e);
             if (DataContext is MidiEditorViewModel vm)
             {
                 vm.ViewportLeft = e;
@@ -234,6 +235,7 @@ namespace Auris_Studio.Views
             vm.ViewportTop = VerticalScrollBar.Offset;
             vm.ViewportWidth = viewportWidth > 0 ? viewportWidth : HorizontalScrollBar.ActualWidth;
             vm.ViewportHeight = viewportHeight > 0 ? viewportHeight : NotesScrollViewer.ActualHeight;
+            ControlCurveEditor.RefreshViewport();
         }
     }
 }

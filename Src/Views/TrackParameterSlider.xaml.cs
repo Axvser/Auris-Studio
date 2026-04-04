@@ -1,80 +1,21 @@
-using Auris_Studio.Views.Transitions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using VeloxDev.Core.DynamicTheme;
-using VeloxDev.Core.TransitionSystem;
 using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.Views;
+
 [ThemeConfig<ObjectConverter, Dark, Light>(nameof(Foreground), [nameof(Brushes.White)], [nameof(Brushes.Black)])]
 [ThemeConfig<ObjectConverter, Dark, Light>(nameof(CardBackground), ["#16181D"], ["#FAFAFC"])]
 [ThemeConfig<ObjectConverter, Dark, Light>(nameof(TrackBrush), ["#30FFFFFF"], ["#16000000"])]
 [ThemeConfig<ObjectConverter, Dark, Light>(nameof(SecondaryForeground), ["#AAFFFFFF"], ["#99000000"])]
 public partial class TrackParameterSlider : UserControl
 {
-    private bool _isHovered;
-
     public TrackParameterSlider()
     {
         InitializeComponent();
         InitializeTheme();
-        Loaded += TrackParameterSlider_Loaded;
-    }
-
-    private void TrackParameterSlider_Loaded(object sender, RoutedEventArgs e)
-    {
-        UpdateVisualState();
-    }
-
-    partial void OnThemeChanged(Type? oldValue, Type? newValue)
-    {
-        if (newValue is not null)
-        {
-            UpdateVisualState();
-        }
-    }
-
-    private void UpdateVisualState()
-    {
-        if (FindCardBorder() is not Border cardBorder)
-        {
-            return;
-        }
-
-        if (_isHovered)
-        {
-            if (ThemeManager.Current == typeof(Dark))
-            {
-                TrackSurfaceTransitions.DarkHover_Background.Execute(cardBorder);
-            }
-            else
-            {
-                TrackSurfaceTransitions.LightHover_Background.Execute(cardBorder);
-            }
-            return;
-        }
-
-        if (ThemeManager.Current == typeof(Dark))
-        {
-            TrackSurfaceTransitions.DarkCard_Background.Execute(cardBorder);
-        }
-        else
-        {
-            TrackSurfaceTransitions.LightCard_Background.Execute(cardBorder);
-        }
-    }
-
-    private void CardBorder_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        _isHovered = true;
-        UpdateVisualState();
-    }
-
-    private void CardBorder_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        _isHovered = false;
-        UpdateVisualState();
     }
 
     public string Label

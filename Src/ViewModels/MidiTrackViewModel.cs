@@ -2,9 +2,8 @@
 using Auris_Studio.ViewModels.ComponentModel;
 using Auris_Studio.ViewModels.MidiEvents;
 using NAudio.Midi;
-using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Linq;
+using System.ComponentModel;
 using System.Text;
 using System.Text.Json.Serialization;
 using VeloxDev.Core.MVVM;
@@ -275,6 +274,11 @@ public partial class MidiTrackViewModel
                     foreach (EventViewModel midiEvent in e.NewItems)
                     {
                         midiEvent.Parent = this;
+                        if (midiEvent is ControlChangeEventViewModel controlEvent)
+                        {
+                            controlEvent.PropertyChanged += OnControlChangeEventPropertyChanged;
+                            RemoveDuplicateControlEvents(controlEvent);
+                        }
                     }
                 }
                 break;
@@ -285,9 +289,43 @@ public partial class MidiTrackViewModel
                     foreach (EventViewModel midiEvent in e.OldItems)
                     {
                         midiEvent.Parent = null;
+                        if (midiEvent is ControlChangeEventViewModel controlEvent)
+                        {
+                            controlEvent.PropertyChanged -= OnControlChangeEventPropertyChanged;
+                        }
                     }
                 }
                 break;
+        }
+    }
+
+    private void OnControlChangeEventPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is not ControlChangeEventViewModel controlEvent)
+        {
+            return;
+        }
+
+        if (e.PropertyName is nameof(ControlChangeEventViewModel.AbsoluteTime)
+            or nameof(ControlChangeEventViewModel.Value)
+            or nameof(ControlChangeEventViewModel.MidiController))
+        {
+            RemoveDuplicateControlEvents(controlEvent);
+        }
+    }
+
+    private void RemoveDuplicateControlEvents(ControlChangeEventViewModel controlEvent)
+    {
+        var duplicates = Ctrls.VisibleItems
+            .Where(existing => !ReferenceEquals(existing, controlEvent)
+                && existing.MidiController == controlEvent.MidiController
+                && existing.AbsoluteTime == controlEvent.AbsoluteTime
+                && existing.Value == controlEvent.Value)
+            .ToList();
+
+        foreach (var duplicate in duplicates)
+        {
+            Ctrls.Remove(duplicate);
         }
     }
 
@@ -394,6 +432,36 @@ public partial class MidiTrackViewModel
         }
     }
 
+    internal TimeOrderableCollection<ControlChangeEventViewModel> GetControlCollection(TrackControlLane lane) => lane switch
+    {
+        TrackControlLane.Volume => Volumes,
+        TrackControlLane.Pan => Pans,
+        TrackControlLane.Expression => Expressions,
+        TrackControlLane.Modulation => Modulations,
+        TrackControlLane.Sustain => Sustains,
+        _ => Volumes,
+    };
+
+    internal static MidiController GetMidiController(TrackControlLane lane) => lane switch
+    {
+        TrackControlLane.Volume => MidiController.MainVolume,
+        TrackControlLane.Pan => MidiController.Pan,
+        TrackControlLane.Expression => MidiController.Expression,
+        TrackControlLane.Modulation => MidiController.Modulation,
+        TrackControlLane.Sustain => MidiController.Sustain,
+        _ => MidiController.MainVolume,
+    };
+
+    internal static string GetControlLaneDisplayName(TrackControlLane lane) => lane switch
+    {
+        TrackControlLane.Volume => "Volume",
+        TrackControlLane.Pan => "Pan",
+        TrackControlLane.Expression => "Expression",
+        TrackControlLane.Modulation => "Modulation",
+        TrackControlLane.Sustain => "Sustain",
+        _ => "Volume",
+    };
+
     private TimeOrderableCollection<ControlChangeEventViewModel>? ResolveControlCollection(MidiController midiController) => midiController switch
     {
         MidiController.MainVolume => Volumes,
@@ -479,7 +547,7 @@ public partial class MidiTrackViewModel
         var controlVm = new ControlChangeEventViewModel
         {
             AbsoluteTime = 0,
-            DeltaTime = 0,
+            DeltaTime = 1,
             MidiController = midiController,
             Value = clamped,
         };

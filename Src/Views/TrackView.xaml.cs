@@ -1,24 +1,30 @@
 ﻿using Auris_Studio.Midi;
 using Auris_Studio.ViewModels;
-using Auris_Studio.Views.Transitions;
-using System;
 using System.ComponentModel;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using VeloxDev.Core.DynamicTheme;
-using VeloxDev.Core.TransitionSystem;
 using VeloxDev.WPF.PlatformAdapters;
 
 namespace Auris_Studio.Views
 {
+    public enum TrackSurfaceState
+    {
+        Normal,
+        Hover,
+        Selected,
+    }
+
     [ThemeConfig<ObjectConverter, Dark, Light>(nameof(Foreground), [nameof(Brushes.White)], [nameof(Brushes.Black)])]
     [ThemeConfig<ObjectConverter, Dark, Light>(nameof(FieldBackground), ["#22FFFFFF"], ["#14000000"])]
     [ThemeConfig<ObjectConverter, Dark, Light>(nameof(SecondaryForeground), ["#AAFFFFFF"], ["#99000000"])]
     [ThemeConfig<ObjectConverter, Dark, Light>(nameof(PopupBackground), ["#111318"], ["#F7F8FB"])]
+    [ThemeConfig<ObjectConverter, Dark, Light>("CardBackground", ["#16181D"], ["#FAFAFC"])]
+    [ThemeConfig<ObjectConverter, Dark, Light>("HoverCardBackground", ["#1C2027"], ["#F2F4F8"])]
+    [ThemeConfig<ObjectConverter, Dark, Light>("SelectedCardBackground", ["#2200FFFF"], ["#16000000"])]
     public partial class TrackView : UserControl
     {
         private const string MuteOffIcon = "M128 420.576v200.864h149.12l175.456 140.064V284.288l-169.792 136.288H128z m132.256-64l204.288-163.968a32 32 0 0 1 52.032 24.96v610.432a32 32 0 0 1-51.968 24.992l-209.92-167.552H96a32 32 0 0 1-32-32v-264.864a32 32 0 0 1 32-32h164.256zM752 458.656L870.4 300.8a32 32 0 1 1 51.2 38.4L792 512l129.6 172.8a32 32 0 0 1-51.2 38.4l-118.4-157.856-118.4 157.856a32 32 0 0 1-51.2-38.4l129.6-172.8-129.6-172.8a32 32 0 0 1 51.2-38.4l118.4 157.856z";
@@ -71,14 +77,37 @@ namespace Auris_Studio.Views
         public static readonly DependencyProperty PopupBackgroundProperty =
             DependencyProperty.Register(nameof(PopupBackground), typeof(Brush), typeof(TrackView), new PropertyMetadata(Brushes.Transparent));
 
-        partial void OnThemeChanged(Type? oldValue, Type? newValue)
+        public Brush CardBackground
         {
-            if (newValue is not null && DataContext is MidiTrackViewModel track)
-            {
-                RefreshButtonContent(track);
-                UpdateVisualState(track);
-            }
+            get => (Brush)GetValue(CardBackgroundProperty);
+            set => SetValue(CardBackgroundProperty, value);
         }
+        public static readonly DependencyProperty CardBackgroundProperty =
+            DependencyProperty.Register(nameof(CardBackground), typeof(Brush), typeof(TrackView), new PropertyMetadata(Brushes.Transparent));
+
+        public Brush HoverCardBackground
+        {
+            get => (Brush)GetValue(HoverCardBackgroundProperty);
+            set => SetValue(HoverCardBackgroundProperty, value);
+        }
+        public static readonly DependencyProperty HoverCardBackgroundProperty =
+            DependencyProperty.Register(nameof(HoverCardBackground), typeof(Brush), typeof(TrackView), new PropertyMetadata(Brushes.Transparent));
+
+        public Brush SelectedCardBackground
+        {
+            get => (Brush)GetValue(SelectedCardBackgroundProperty);
+            set => SetValue(SelectedCardBackgroundProperty, value);
+        }
+        public static readonly DependencyProperty SelectedCardBackgroundProperty =
+            DependencyProperty.Register(nameof(SelectedCardBackground), typeof(Brush), typeof(TrackView), new PropertyMetadata(Brushes.Transparent));
+
+        public TrackSurfaceState SurfaceState
+        {
+            get => (TrackSurfaceState)GetValue(SurfaceStateProperty);
+            set => SetValue(SurfaceStateProperty, value);
+        }
+        public static readonly DependencyProperty SurfaceStateProperty =
+            DependencyProperty.Register(nameof(SurfaceState), typeof(TrackSurfaceState), typeof(TrackView), new PropertyMetadata(TrackSurfaceState.Normal));
 
         private void TrackView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
@@ -151,55 +180,20 @@ namespace Auris_Studio.Views
 
         private void UpdateVisualState(MidiTrackViewModel track)
         {
-            if (FindCardBorder() is not Border cardBorder)
-            {
-                return;
-            }
-
             if (track.Selected)
             {
-                ExecuteSelectedTransition(cardBorder);
+                SurfaceState = TrackSurfaceState.Selected;
             }
             else if (_isHovered)
             {
-                ExecuteHoverTransition(cardBorder);
+                SurfaceState = TrackSurfaceState.Hover;
             }
             else
             {
-                ExecuteNormalTransition(cardBorder);
+                SurfaceState = TrackSurfaceState.Normal;
             }
 
             Opacity = track.IsAudible ? 1.0 : 0.68;
-        }
-
-        private static void ExecuteSelectedTransition(Border border)
-        {
-            if (ThemeManager.Current == typeof(Dark))
-            {
-                TrackSurfaceTransitions.DarkSelected_Background.Execute(border);
-                return;
-            }
-            TrackSurfaceTransitions.LightSelected_Background.Execute(border);
-        }
-
-        private static void ExecuteHoverTransition(Border border)
-        {
-            if (ThemeManager.Current == typeof(Dark))
-            {
-                TrackSurfaceTransitions.DarkHover_Background.Execute(border);
-                return;
-            }
-            TrackSurfaceTransitions.LightHover_Background.Execute(border);
-        }
-
-        private static void ExecuteNormalTransition(Border border)
-        {
-            if (ThemeManager.Current == typeof(Dark))
-            {
-                TrackSurfaceTransitions.DarkCard_Background.Execute(border);
-                return;
-            }
-            TrackSurfaceTransitions.LightCard_Background.Execute(border);
         }
 
         private void PopulateChannelOptions()

@@ -1,0 +1,89 @@
+<UserControl x:Class="Auris_Studio.Views.ControlCurveEditorView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Auris_Studio.Views"
+             xmlns:decorators="clr-namespace:Auris_Studio.Views.Decorators"
+             mc:Ignorable="d"
+             d:DesignHeight="160"
+             d:DesignWidth="600"
+             x:Name="Root">
+    <UserControl.Resources>
+        <Style x:Key="LaneButtonStyle" TargetType="local:Button">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BlurRadius" Value="16"/>
+            <Setter Property="ContentMargin" Value="10,5,10,5"/>
+            <Setter Property="UseHoverForeground" Value="False"/>
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center">
+            <local:Button x:Name="VolumeButton"
+                          Style="{StaticResource LaneButtonStyle}"
+                          Tag="Volume"
+                          ButtonContent="Volume"
+                          Click="LaneButton_Click"/>
+            <local:Button x:Name="PanButton"
+                          Style="{StaticResource LaneButtonStyle}"
+                          Tag="Pan"
+                          ButtonContent="Pan"
+                          Click="LaneButton_Click"/>
+            <local:Button x:Name="ExpressionButton"
+                          Style="{StaticResource LaneButtonStyle}"
+                          Tag="Expression"
+                          ButtonContent="Expression"
+                          Click="LaneButton_Click"/>
+            <local:Button x:Name="ModulationButton"
+                          Style="{StaticResource LaneButtonStyle}"
+                          Tag="Modulation"
+                          ButtonContent="Modulation"
+                          Click="LaneButton_Click"/>
+            <local:Button x:Name="SustainButton"
+                          Style="{StaticResource LaneButtonStyle}"
+                          Tag="Sustain"
+                          ButtonContent="Sustain"
+                          Click="LaneButton_Click"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1"
+              x:Name="CurveHost">
+            <Border Background="#05000000"
+                    IsHitTestVisible="False"
+                    decorators:DecoratorHelper.ShowMeasureBeatLines="True"
+                    decorators:DecoratorHelper.DataContextBridge="{Binding ElementName=Root,Path=DataContext}"
+                    decorators:DecoratorHelper.ShowHeader="False"
+                    decorators:DecoratorHelper.ShowContent="True"/>
+            <ScrollViewer x:Name="EditorScrollViewer"
+                          HorizontalScrollBarVisibility="Hidden"
+                          VerticalScrollBarVisibility="Disabled"
+                          SizeChanged="EditorScrollViewer_SizeChanged">
+                <Grid x:Name="EditorSurface"
+                      Width="{Binding CanvasWidth}"
+                      Height="{Binding ActualHeight, ElementName=CurveHost}"
+                      Background="#01000000"
+                      PreviewMouseLeftButtonDown="EditorSurface_PreviewMouseLeftButtonDown"
+                      PreviewMouseMove="EditorSurface_PreviewMouseMove"
+                      PreviewMouseLeftButtonUp="EditorSurface_PreviewMouseLeftButtonUp"
+                      PreviewMouseRightButtonDown="EditorSurface_PreviewMouseRightButtonDown"
+                      MouseLeave="EditorSurface_MouseLeave">
+                    <Border Background="#05000000"/>
+                    <decorators:ControlCurveDecorator x:Name="CurveDecorator"
+                                                      WidthPerTick="{Binding WidthPerTick, FallbackValue=0}"/>
+                    <Canvas x:Name="PointsCanvas"
+                            Background="Transparent"/>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

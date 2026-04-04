@@ -199,13 +199,26 @@
 
         <!-- 控制器 -->
         <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="30"/>
                 <RowDefinition />
                 <RowDefinition Height="15"/>
             </Grid.RowDefinitions>
 
-            <Grid Grid.Row="2">
+            <local:ControlCurveEditorView x:Name="ControlCurveEditor"
+                                          Grid.Column="1"
+                                          Grid.Row="0"
+                                          Grid.RowSpan="2"
+                                          DataContext="{Binding ElementName=Root,Path=DataContext}"
+                                          Background="{Binding ElementName=Root,Path=Background}"
+                                          Foreground="{Binding ElementName=Root,Path=Foreground}"/>
+
+            <Grid Grid.Column="1"
+                  Grid.Row="2">
                 <local:ScrollBar x:Name="HorizontalScrollBar"
                                  Orientation="Horizontal"
                                  Minimum="0"

@@ -8,6 +8,11 @@ namespace Auris_Studio.ViewModels.MidiEvents;
 /// </summary>
 public partial class ControlChangeEventViewModel : EventViewModel
 {
+    public ControlChangeEventViewModel()
+    {
+        DeltaTime = 1;
+    }
+
     [VeloxProperty] private int _value = 127; // 控制值
     [VeloxProperty] private MidiController midiController = MidiController.AllNotesOff; // 控制器类型
 
@@ -19,6 +24,7 @@ public partial class ControlChangeEventViewModel : EventViewModel
             Value = controlEvent.ControllerValue;
             MidiController = controlEvent.Controller;
             AbsoluteTime = controlEvent.AbsoluteTime;
+            DeltaTime = 1;
         }
     }
 

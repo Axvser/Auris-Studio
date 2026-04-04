@@ -33,10 +33,27 @@
             Padding="8,6"
             HorizontalAlignment="Stretch"
             CornerRadius="20"
-            Background="Transparent"
             MouseLeftButtonDown="CardBorder_MouseLeftButtonDown"
             MouseEnter="CardBorder_MouseEnter"
             MouseLeave="CardBorder_MouseLeave">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="Background"
+                        Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=CardBackground}"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=SurfaceState}"
+                                 Value="Hover">
+                        <Setter Property="Background"
+                                Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=HoverCardBackground}"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=SurfaceState}"
+                                 Value="Selected">
+                        <Setter Property="Background"
+                                Value="{Binding RelativeSource={RelativeSource AncestorType=local:TrackView}, Path=SelectedCardBackground}"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>

@@ -35,6 +35,15 @@ public enum HorizontalMoveDirection
     Right,
 }
 
+public enum TrackControlLane
+{
+    Volume,
+    Pan,
+    Expression,
+    Modulation,
+    Sustain,
+}
+
 public partial class MidiEditorViewModel : IMidiFormatable
 {
     private bool _isSynchronizingTrackAudioState;
@@ -130,6 +139,10 @@ public partial class MidiEditorViewModel : IMidiFormatable
     [VeloxProperty] public partial bool HasDragContext { get; internal set; }
     [VeloxProperty] public partial NoteMoveIntent CurrentMoveIntent { get; internal set; }
     [VeloxProperty] public partial HorizontalMoveDirection CurrentHorizontalMoveDirection { get; internal set; }
+    [VeloxProperty] public partial TrackControlLane SelectedControlLane { get; set; }
+
+    [JsonIgnore]
+    public TimeOrderableCollection<ControlChangeEventViewModel>? SelectedControlCollection => CurrentSelectedTrack?.GetControlCollection(SelectedControlLane);
 
     public MidiEditorViewModel()
     {
@@ -153,6 +166,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
         ControlCanvasHeight = 100;
         UseSnap = false;
         DragBehavior = NoteDragBehavior.Free;
+        SelectedControlLane = TrackControlLane.Volume;
         IsEnabled = true;
 
         Tracks.CollectionChanged += OnTracksChanged;
@@ -329,6 +343,13 @@ public partial class MidiEditorViewModel : IMidiFormatable
         {
             note.IsEnabled = true;
         }
+
+        OnPropertyChanged(nameof(SelectedControlCollection));
+    }
+
+    partial void OnSelectedControlLaneChanged(TrackControlLane oldValue, TrackControlLane newValue)
+    {
+        OnPropertyChanged(nameof(SelectedControlCollection));
     }
 
     internal bool IsTrackAudible(MidiTrackViewModel track) => !track.Muted && (!HasSoloTracks || track.Solo);
@@ -685,7 +706,7 @@ public partial class MidiEditorViewModel : IMidiFormatable
 
     private static bool IsSupportedTimeSignatureDenominator(int denominator) => denominator is 1 or 2 or 4 or 8 or 16 or 32;
 
-    private long AlignTimeNearest(long time)
+    internal long AlignTimeNearest(long time)
     {
         if (!UseSnap) return Math.Max(0, time);
 

@@ -1,4 +1,3 @@
-using Auris_Studio.Views;
 using System.Windows.Controls;
 using System.Windows.Media;
 using VeloxDev.WPF.PlatformAdapters;
